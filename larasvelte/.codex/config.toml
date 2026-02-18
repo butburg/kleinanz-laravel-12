@@ -1,0 +1,4 @@
+[mcp_servers.laravel-boost]
+command = "/home/butburg/.config/herd-lite/bin/php"
+args = ["/home/butburg/repos/kleinanz-laravel-12/larasvelte/artisan", "boost:mcp"]
+cwd = "/home/butburg/repos/kleinanz-laravel-12/larasvelte"
