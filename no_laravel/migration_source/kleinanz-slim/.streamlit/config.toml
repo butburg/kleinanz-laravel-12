@@ -1,0 +1,10 @@
+# 4_web_interface/.streamlit/config.toml
+[server]
+headless = true
+maxUploadSize = 10
+enableCORS = true
+enableXsrfProtection = true
+[client]
+showSidebarNavigation = false
+[browser]
+gatherUsageStats = false

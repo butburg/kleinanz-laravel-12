@@ -1,0 +1,11 @@
+# OS / Python
+.DS_Store
+__pycache__/
+*.pyc
+
+# Local data
+data/ads.db
+data/*.db
+
+# Streamlit secrets (copy from .streamlit/secrets.example.toml)
+.streamlit/secrets.toml
