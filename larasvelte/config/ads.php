@@ -9,6 +9,12 @@ return [
         'shipping_options' => ['klein', 'mittel'],
     ],
 
+    'image' => [
+        'max_files' => 10,
+        'max_file_kb' => 5120,
+        'supported_formats' => ['jpg', 'jpeg', 'png', 'webp', 'avif'],
+    ],
+
     'status' => [
         'default' => 'Entwurf',
         'options' => ['Entwurf', 'Online', 'Archiviert'],

@@ -14,6 +14,10 @@
             href: '/dashboard',
             icon: LayoutGrid,
         },
+        {
+            title: 'Ads',
+            href: '/ads',
+        },
     ];
 
     const footerNavItems: NavItem[] = [

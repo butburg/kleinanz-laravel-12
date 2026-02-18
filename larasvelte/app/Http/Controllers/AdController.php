@@ -2,54 +2,245 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreAdImageRequest;
 use App\Http\Requests\StoreAdRequest;
 use App\Http\Requests\UpdateAdRequest;
+use App\Http\Requests\UpdateAdStatusRequest;
 use App\Models\Ad;
+use App\Models\AdImage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdController extends Controller
 {
+    private function statusColor(string $status): string
+    {
+        return match ($status) {
+            'Online' => 'green',
+            'Archiviert' => 'zinc',
+            default => 'amber',
+        };
+    }
+
+    private function expiryDetails(Ad $ad): array
+    {
+        if ($ad->status !== 'Online' || $ad->last_online_at === null) {
+            return [
+                'expiry_at' => null,
+                'days_to_expiry' => null,
+                'is_expired' => false,
+            ];
+        }
+
+        $expiryAt = $ad->last_online_at->copy()->addDays(60)->startOfDay();
+        $daysToExpiry = now()->startOfDay()->diffInDays($expiryAt, false);
+
+        return [
+            'expiry_at' => $expiryAt->toDateString(),
+            'days_to_expiry' => $daysToExpiry,
+            'is_expired' => $daysToExpiry < 0,
+        ];
+    }
+
+    private function listThumbnailUrl(Ad $ad): ?string
+    {
+        $titleImage = $ad->images->firstWhere('is_title', true) ?? $ad->images->first();
+        $thumbPath = $titleImage?->cropped_thumb_path ?? $titleImage?->large_thumb_path;
+
+        return $thumbPath ? Storage::disk('public')->url($thumbPath) : null;
+    }
+
+    private function listImageDownloadPayload(Ad $ad, AdImage $image): array
+    {
+        return [
+            'id' => $image->id,
+            'original_name' => $image->original_name,
+            'download_url' => route('ads.images.download', [$ad, $image], absolute: false),
+        ];
+    }
+
+    /**
+     * @return array{large_path: string, large_thumb_path: string, cropped_path: null, cropped_thumb_path: null}
+     */
+    private function storeImageVariants(Ad $ad, UploadedFile $file): array
+    {
+        $largePath = $file->store("ads/{$ad->id}/large", 'public');
+        $largeThumbPath = "ads/{$ad->id}/large_thumb/".basename($largePath);
+
+        Storage::disk('public')->copy($largePath, $largeThumbPath);
+
+        return [
+            'large_path' => $largePath,
+            'large_thumb_path' => $largeThumbPath,
+            'cropped_path' => null,
+            'cropped_thumb_path' => null,
+        ];
+    }
+
+    private function imagePayload(AdImage $image): array
+    {
+        $thumbPath = $image->cropped_thumb_path ?? $image->large_thumb_path;
+
+        return [
+            'id' => $image->id,
+            'original_name' => $image->original_name,
+            'url' => Storage::disk('public')->url($thumbPath),
+            'variants' => [
+                'large' => Storage::disk('public')->url($image->large_path),
+                'large_thumb' => Storage::disk('public')->url($image->large_thumb_path),
+                'cropped' => $image->cropped_path ? Storage::disk('public')->url($image->cropped_path) : null,
+                'cropped_thumb' => $image->cropped_thumb_path ? Storage::disk('public')->url($image->cropped_thumb_path) : null,
+            ],
+            'is_title' => $image->is_title,
+            'position' => $image->position,
+        ];
+    }
+
+    private function formOptions(): array
+    {
+        return [
+            'conditions' => config('ads.validation.conditions'),
+            'shipping' => config('ads.validation.shipping_options'),
+            'statuses' => config('ads.status.options'),
+            'limits' => [
+                'title' => config('ads.validation.title_max_length'),
+                'description' => config('ads.validation.description_max_length'),
+                'images' => config('ads.image.max_files'),
+            ],
+        ];
+    }
+
+    /**
+     * @param  list<UploadedFile>  $files
+     */
+    private function appendImages(Ad $ad, array $files): void
+    {
+        if ($files === []) {
+            return;
+        }
+
+        $maxPosition = $ad->images()->max('position');
+        $startingPosition = $maxPosition === null ? 0 : ($maxPosition + 1);
+        foreach ($files as $offset => $file) {
+            $variants = $this->storeImageVariants($ad, $file);
+
+            $ad->images()->create([
+                ...$variants,
+                'original_name' => $file->getClientOriginalName(),
+                'position' => $startingPosition + $offset,
+                'is_title' => false,
+            ]);
+        }
+
+        $hasTitle = $ad->images()->where('is_title', true)->exists();
+
+        if (! $hasTitle) {
+            $newTitleImageId = $ad->images()->oldest('position')->value('id');
+            if ($newTitleImageId !== null) {
+                $ad->images()->where('is_title', true)->update(['is_title' => false]);
+                $ad->images()->whereKey($newTitleImageId)->update(['is_title' => true]);
+            }
+        }
+    }
+
+    private function ensureImageBelongsToAd(Ad $ad, AdImage $adImage): void
+    {
+        abort_if($adImage->ad_id !== $ad->id, 404);
+    }
+
     public function index(Request $request): Response
     {
+        $ads = Ad::query()
+            ->whereBelongsTo($request->user())
+            ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,is_title,position'])
+            ->latest()
+            ->paginate(12)
+            ->withQueryString()
+            ->through(fn (Ad $ad): array => [
+                'id' => $ad->id,
+                'title' => $ad->title,
+                'description' => $ad->description,
+                'status' => $ad->status,
+                'status_color' => $this->statusColor($ad->status),
+                'price' => $ad->price,
+                ...$this->expiryDetails($ad),
+                'thumbnail_url' => $this->listThumbnailUrl($ad),
+                'images' => $ad->images
+                    ->map(fn (AdImage $image): array => $this->listImageDownloadPayload($ad, $image))
+                    ->values()
+                    ->all(),
+            ]);
+
         return Inertia::render('ads/Index', [
-            'ads' => Ad::query()
-                ->whereBelongsTo($request->user())
-                ->latest()
-                ->get(),
+            'ads' => $ads,
+            'statusOptions' => config('ads.status.options'),
         ]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('ads/Create');
+        return Inertia::render('ads/Create', [
+            'options' => $this->formOptions(),
+        ]);
     }
 
     public function store(StoreAdRequest $request): RedirectResponse
     {
-        $request->user()->ads()->create([
-            ...$request->validated(),
-            'status' => $request->validated('status') ?? config('ads.status.default'),
-        ]);
+        DB::transaction(function () use ($request): void {
+            $payload = [
+                ...$request->safe()->except(['images']),
+                'status' => $request->validated('status') ?? config('ads.status.default'),
+            ];
 
-        return to_route('ads.index');
+            if ($payload['status'] === 'Online') {
+                $payload['last_online_at'] = now();
+            }
+
+            $ad = $request->user()->ads()->create($payload);
+
+            /** @var list<UploadedFile> $files */
+            $files = $request->file('images', []);
+            $this->appendImages($ad, $files);
+        });
+
+        return to_route('ads.index')->with('success', 'Ad created successfully.');
     }
 
     public function edit(Ad $ad): Response
     {
         $this->authorize('update', $ad);
 
-        return Inertia::render('ads/Edit', ['ad' => $ad]);
+        return Inertia::render('ads/Edit', [
+            'ad' => [
+                ...$ad->toArray(),
+                'images' => $ad->images()
+                    ->get()
+                    ->map(fn (AdImage $image): array => $this->imagePayload($image))
+                    ->values()
+                    ->all(),
+            ],
+            'options' => $this->formOptions(),
+        ]);
     }
 
     public function update(UpdateAdRequest $request, Ad $ad): RedirectResponse
     {
         $this->authorize('update', $ad);
-        $ad->update($request->validated());
+        $payload = $request->validated();
 
-        return to_route('ads.index');
+        if (($payload['status'] ?? null) === 'Online' && $ad->status !== 'Online') {
+            $payload['last_online_at'] = now();
+        }
+
+        $ad->update($payload);
+
+        return to_route('ads.index')->with('success', 'Ad updated successfully.');
     }
 
     public function destroy(Ad $ad): RedirectResponse
@@ -57,6 +248,86 @@ class AdController extends Controller
         $this->authorize('delete', $ad);
         $ad->delete();
 
-        return to_route('ads.index');
+        return to_route('ads.index')->with('success', 'Ad deleted successfully.');
+    }
+
+    public function storeImage(StoreAdImageRequest $request, Ad $ad): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+
+        $existingCount = $ad->images()->count();
+        /** @var list<UploadedFile> $files */
+        $files = $request->file('images', []);
+
+        if (($existingCount + count($files)) > config('ads.image.max_files')) {
+            return back()->withErrors([
+                'images' => 'Maximum image count exceeded.',
+            ])->with('error', 'Maximum image count exceeded.');
+        }
+
+        $this->appendImages($ad, $files);
+
+        return to_route('ads.edit', $ad)->with('success', 'Images uploaded successfully.');
+    }
+
+    public function updateStatus(UpdateAdStatusRequest $request, Ad $ad): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+        $status = $request->validated('status');
+        $payload = ['status' => $status];
+
+        if ($status === 'Online' && $ad->status !== 'Online') {
+            $payload['last_online_at'] = now();
+        }
+
+        $ad->update($payload);
+
+        return to_route('ads.index')->with('success', 'Ad status updated successfully.');
+    }
+
+    public function setTitleImage(Ad $ad, AdImage $adImage): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+        $this->ensureImageBelongsToAd($ad, $adImage);
+
+        $ad->images()->where('is_title', true)->update(['is_title' => false]);
+        $adImage->update(['is_title' => true]);
+
+        return to_route('ads.edit', $ad)->with('success', 'Title image updated successfully.');
+    }
+
+    public function destroyImage(Ad $ad, AdImage $adImage): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+        $this->ensureImageBelongsToAd($ad, $adImage);
+
+        $deletedWasTitle = $adImage->is_title;
+        Storage::disk('public')->delete(array_filter([
+            $adImage->large_path,
+            $adImage->large_thumb_path,
+            $adImage->cropped_path,
+            $adImage->cropped_thumb_path,
+        ]));
+        $adImage->delete();
+
+        if ($deletedWasTitle) {
+            $nextImageId = $ad->images()->orderBy('position')->value('id');
+            if ($nextImageId !== null) {
+                $ad->images()->whereKey($nextImageId)->update(['is_title' => true]);
+            }
+        }
+
+        return to_route('ads.edit', $ad)->with('success', 'Image deleted successfully.');
+    }
+
+    public function downloadImage(Ad $ad, AdImage $adImage): StreamedResponse
+    {
+        $this->authorize('update', $ad);
+        $this->ensureImageBelongsToAd($ad, $adImage);
+
+        $downloadPath = $adImage->cropped_path ?? $adImage->large_path;
+        abort_if($downloadPath === null, 404);
+
+        return Storage::disk('public')->download($downloadPath, $adImage->original_name);
     }
 }

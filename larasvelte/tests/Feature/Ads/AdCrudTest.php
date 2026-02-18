@@ -21,6 +21,7 @@ it('lets authenticated users create an ad', function (): void {
     ]);
 
     $response->assertRedirect(route('ads.index', absolute: false));
+    $response->assertSessionHas('success', 'Ad created successfully.');
 
     $this->assertDatabaseHas('ads', [
         'user_id' => $user->id,
@@ -39,7 +40,7 @@ it('renders dedicated ads pages for authenticated users', function (): void {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('ads/Index')
-            ->has('ads', 1)
+            ->has('ads.data', 1)
         );
 
     $this->actingAs($user)
@@ -68,7 +69,31 @@ it('lists only ads that belong to the authenticated user', function (): void {
     $this->actingAs($user)
         ->get(route('ads.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('ads', 1));
+        ->assertInertia(fn (Assert $page) => $page->has('ads.data', 1));
+});
+
+it('paginates ads list for authenticated users', function (): void {
+    $user = User::factory()->create();
+    Ad::factory()->count(13)->for($user)->create();
+
+    $this->actingAs($user)
+        ->get(route('ads.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ads/Index')
+            ->has('ads.data', 12)
+            ->where('ads.current_page', 1)
+            ->where('ads.last_page', 2)
+        );
+
+    $this->actingAs($user)
+        ->get(route('ads.index', ['page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ads/Index')
+            ->has('ads.data', 1)
+            ->where('ads.current_page', 2)
+        );
 });
 
 it('lets owners update and delete their ad', function (): void {
@@ -87,6 +112,7 @@ it('lets owners update and delete their ad', function (): void {
     ]);
 
     $updateResponse->assertRedirect(route('ads.index', absolute: false));
+    $updateResponse->assertSessionHas('success', 'Ad updated successfully.');
     $this->assertDatabaseHas('ads', [
         'id' => $ad->id,
         'title' => 'Updated title',
@@ -96,6 +122,7 @@ it('lets owners update and delete their ad', function (): void {
     $deleteResponse = $this->actingAs($user)->delete(route('ads.destroy', $ad));
 
     $deleteResponse->assertRedirect(route('ads.index', absolute: false));
+    $deleteResponse->assertSessionHas('success', 'Ad deleted successfully.');
     $this->assertDatabaseMissing('ads', [
         'id' => $ad->id,
     ]);
@@ -116,4 +143,78 @@ it('forbids modifying ads owned by another user', function (): void {
     ])->assertForbidden();
 
     $this->actingAs($intruder)->delete(route('ads.destroy', $ad))->assertForbidden();
+});
+
+it('tracks last_online_at when creating ad directly as Online', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('ads.store'), [
+        'title' => 'Online from create',
+        'description' => str_repeat('Created online description. ', 3),
+        'price' => 33,
+        'condition' => 'Gut',
+        'shipping' => 'klein',
+        'status' => 'Online',
+    ])->assertRedirect(route('ads.index', absolute: false));
+
+    $ad = Ad::query()->where('user_id', $user->id)->latest()->firstOrFail();
+
+    expect($ad->status)->toBe('Online');
+    expect($ad->last_online_at)->not->toBeNull();
+});
+
+it('tracks last_online_at when status transitions from non-online to Online', function (): void {
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create([
+        'status' => 'Entwurf',
+        'last_online_at' => null,
+    ]);
+
+    $this->actingAs($user)->patch(route('ads.update', $ad), [
+        'title' => $ad->title,
+        'description' => $ad->description,
+        'price' => $ad->price,
+        'condition' => $ad->condition,
+        'shipping' => $ad->shipping,
+        'status' => 'Online',
+    ])->assertRedirect(route('ads.index', absolute: false));
+
+    expect($ad->fresh()?->last_online_at)->not->toBeNull();
+});
+
+it('does not change last_online_at when ad remains Online', function (): void {
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create([
+        'status' => 'Online',
+        'last_online_at' => now()->subDay(),
+    ]);
+    $initialLastOnlineAt = $ad->last_online_at;
+
+    $this->actingAs($user)->patch(route('ads.update', $ad), [
+        'title' => 'Updated while online',
+        'description' => $ad->description,
+        'price' => $ad->price + 1,
+        'condition' => $ad->condition,
+        'shipping' => $ad->shipping,
+        'status' => 'Online',
+    ])->assertRedirect(route('ads.index', absolute: false));
+
+    expect($ad->fresh()?->last_online_at?->toDateTimeString())->toBe($initialLastOnlineAt?->toDateTimeString());
+});
+
+it('allows updating ad status from the dedicated status endpoint', function (): void {
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create([
+        'status' => 'Entwurf',
+        'last_online_at' => null,
+    ]);
+
+    $this->actingAs($user)->patch(route('ads.status.update', $ad), [
+        'status' => 'Online',
+    ])
+        ->assertRedirect(route('ads.index', absolute: false))
+        ->assertSessionHas('success', 'Ad status updated successfully.');
+
+    expect($ad->fresh()?->status)->toBe('Online');
+    expect($ad->fresh()?->last_online_at)->not()->toBeNull();
 });
