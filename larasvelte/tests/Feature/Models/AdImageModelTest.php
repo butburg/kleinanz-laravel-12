@@ -24,7 +24,7 @@ it('can be marked as title image', function () {
     expect($image->is_title)->toBeTrue()
         ->and($image->is_title)->toBeBool();
 });
-b8b1dd27-c528-40b8-bf3e-1e9796df7cb1
+
 it('stores image paths correctly', function () {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
