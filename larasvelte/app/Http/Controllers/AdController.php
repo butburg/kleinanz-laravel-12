@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdController extends Controller
@@ -76,8 +77,10 @@ class AdController extends Controller
         $largeThumbPath = "ads/{$ad->id}/large_thumb/" . basename($largePath);
 
         // Create proper thumbnail instead of copying full image
+        // Use Imagick if available (supports more formats like AVIF), otherwise GD
         try {
-            $manager = new ImageManager(new Driver());
+            $driver = extension_loaded('imagick') ? new ImagickDriver() : new GdDriver();
+            $manager = new ImageManager($driver);
             $fullImagePath = Storage::disk('public')->path($largePath);
             $image = $manager->read($fullImagePath);
 
@@ -92,7 +95,7 @@ class AdController extends Controller
                 $thumbnail->toJpeg(quality: 75, progressive: true)
             );
         } catch (\Intervention\Image\Exceptions\DecoderException $e) {
-            // If image can't be decoded (e.g., AVIF with GD driver), just copy the file
+            // If image can't be decoded (e.g., unsupported format), just copy the file
             Storage::disk('public')->copy($largePath, $largeThumbPath);
         }
 
