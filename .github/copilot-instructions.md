@@ -5,7 +5,7 @@
 
 **Read this first:**
 - Use `php artisan`, Pest, and Eloquent ORM commands for scaffolding and code generation. Avoid creating files manually unless necessary.
-- Reference `docs/` for workflow and architecture details. Key files: `config/ads.php`, `.env.example`, `migration_source/` for legacy logic.
+- Reference `no_laravel/docs/` for workflow and architecture details. Key files: `config/ads.php`, `.env.example`, `no_laravel/migration_source/` for legacy logic.
 
 ### Mandatory: Command-First Generation
 
@@ -17,16 +17,16 @@
 
 ## Docs Index
 
-- `docs/ai-assisted-development.md`: AI agent workflow, Laravel Boost, and project AI guidelines.
-- `docs/artisan-console.md`: Artisan CLI usage, writing commands, input expectations, and I/O.
-- `docs/browser-testing-pest-v4.md`: Pest browser testing patterns and assertion reference.
-- `docs/eloquent-orm-getting-started.md`: Eloquent ORM conventions and core querying patterns.
-- `docs/file-storage.md`: Filesystem configuration, disks/drivers, storing/retrieving/testing files.
-- `docs/laravel-dusk.md`: Laravel Dusk browser testing setup and usage.
-- `docs/laravel-pest-test-plugin.md`: Pest Laravel plugin install, Artisan helpers, and testing helpers.
-- `docs/svelte-5-migration-guide.md`: Svelte 5 migration notes (runes, events, slots, breaking changes).
-- `docs/testing-getting-started.md`: Laravel testing setup, running tests, parallel/coverage/profiling.
-- `docs/validation.md`: Validation quickstart, FormRequests, validators, and common rules.
+- `no_laravel/docs/ai-assisted-development.md`: AI agent workflow, Laravel Boost, and project AI guidelines.
+- `no_laravel/docs/artisan-console.md`: Artisan CLI usage, writing commands, input expectations, and I/O.
+- `no_laravel/docs/browser-testing-pest-v4.md`: Pest browser testing patterns and assertion reference.
+- `no_laravel/docs/eloquent-orm-getting-started.md`: Eloquent ORM conventions and core querying patterns.
+- `no_laravel/docs/file-storage.md`: Filesystem configuration, disks/drivers, storing/retrieving/testing files.
+- `no_laravel/docs/laravel-dusk.md`: Laravel Dusk browser testing setup and usage.
+- `no_laravel/docs/laravel-pest-test-plugin.md`: Pest Laravel plugin install, Artisan helpers, and testing helpers.
+- `no_laravel/docs/svelte-5-migration-guide.md`: Svelte 5 migration notes (runes, events, slots, breaking changes).
+- `no_laravel/docs/testing-getting-started.md`: Laravel testing setup, running tests, parallel/coverage/profiling.
+- `no_laravel/docs/validation.md`: Validation quickstart, FormRequests, validators, and common rules.
 
 ## Architecture & Data Flow
 
@@ -72,11 +72,16 @@
   - `php artisan queue:work` (for async jobs)
   - `php artisan storage:link` (if using filesystem storage)
 
+## TDD Workflow
+
+- Prefer TDD for new features: write or update a failing test first, implement the change, then refactor with tests passing.
+- Use Pest or PHPUnit via Artisan for test generation and execution.
+
 ## Project-Specific Patterns
 
 - **Action classes:** Use invokable classes for business logic (`app/Actions/`)
 - **Livewire/Alpine.js:** For reactive UI (image management, form updates)
-- **Design system:** Tailwind custom colors in `resources/css/app.css`, see `migration_source/oe-app-docker-compose/` for card/button patterns
+- **Design system:** Tailwind custom colors in `resources/css/app.css`, see `no_laravel/migration_source/oe-app-docker-compose/` for card/button patterns
 - **Routing:** RESTful resource routes for ads/images, see `routes/web.php`
 
 ## Integration Points
@@ -87,8 +92,9 @@
 
 ## Reference & Legacy
 
-- For legacy logic, see `migration_source/kleinanz-slim/` (do not copy code, use for business logic reference only)
-- For UI/component patterns, see `migration_source/oe-app-docker-compose/`
+- For legacy logic, see `no_laravel/migration_source/kleinanz-slim/` (do not copy code, use for business logic reference only)
+- For UI/component patterns, see `no_laravel/migration_source`
+- make use of mcp or docs in `no_laravel/docs`
 
 ---
 **Example: Generate Ad model, migration, controller, and form request:**
@@ -102,7 +108,7 @@ php artisan make:model Ad -mfsc
 ```
 
 ---
-**If in doubt, check `docs/` and `config/ads.php` for business rules.**
+**If in doubt, check `no_laravel/docs/` and `config/ads.php` for business rules.**
 
 ## Configuration Management
 
@@ -262,7 +268,7 @@ $maxSize = env('IMAGE_MAX_SIZE'); // NO!
 - **Responsive Grid**: Mobile (1 col) → Tablet (2 col) → Desktop (3 col)
 
 ### Ad Edit Form - Visual Reference
-See [migration_source/edit_ad_layout_example.png](../migration_source/edit_ad_layout_example.png) for Streamlit layout structure (549x953px portrait):
+See [no_laravel/migration_source/edit_ad_layout_example.png](no_laravel/migration_source/edit_ad_layout_example.png) for Streamlit layout structure (549x953px portrait):
 - **Left side**: Image gallery grid with thumbnails
   - Add/Delete/Reorder images
   - Toggle crop version per image
@@ -277,7 +283,7 @@ See [migration_source/edit_ad_layout_example.png](../migration_source/edit_ad_la
 
 ## Architecture Patterns as IDEA, use laravel to create
 
-### Data Model (based on `migration_source/kleinanz-slim/app/anzeigen_schema.py`)
+### Data Model (based on `no_laravel/migration_source/kleinanz-slim/app/anzeigen_schema.py`)
 
 # Shortcut to generate a model, migration, factory, seeder, policy, controller, and form requests...
 php artisan make:model Flight --all
@@ -326,7 +332,7 @@ php artisan make:model Flight -mfsc
 - openai_api_key: text (nullable, encrypted)
 ```
 
-### Service Layer (port from `migration_source/kleinanz-slim/app/services/`)
+### Service Layer (port from `no_laravel/migration_source/kleinanz-slim/app/services/`)
 
 **`app/Services/ImageProcessingService.php`:**
 - `processUploadedImages(UploadedFile $file): array` → Validate, process, store with variants
@@ -362,7 +368,7 @@ php artisan make:model Flight -mfsc
 - `updateAdStatus(string $uuid, string $status): void` → Track `last_online_at` when status → 'Online'
 - `deleteAd(string $uuid): void` → Delete ad + images (cascade or manual)
 
-### Action Classes Pattern (see `migration_source/oe-app-docker-compose/src/app/Actions/`)
+### Action Classes Pattern (see `no_laravel/migration_source/oe-app-docker-compose/src/app/Actions/`)
 - `app/Actions/StoreImage.php`: Handle image upload, resizing, storage
 - `app/Actions/CreateImageVariants.php`: Generate multiple sizes (if needed)
 - Keep logic out of controllers; use invokable classes for reusability
@@ -506,7 +512,7 @@ public function processImage(UploadedFile $file): array {
 - ✅ **Validate dimensions**: Ensure image isn't maliciously resized
 - ✅ **Validate format**: JPEG/PNG/AVIF only
 
-## Design System (from `migration_source/oe-app-docker-compose/`)
+## Design System (from `no_laravel/migration_source/oe-app-docker-compose/`)
 
 ### Color Palette (TailwindCSS custom colors via CSS variables)
 ```css
@@ -523,7 +529,7 @@ public function processImage(UploadedFile $file): array {
 bg-c-background, text-c-text, bg-c-primary, border-c-accent, etc.
 ```
 
-**Color Usage Patterns** (ref: `migration_source/oe-app-docker-compose/src/resources/views/`):
+**Color Usage Patterns** (ref: `no_laravel/migration_source/oe-app-docker-compose/src/resources/views/`):
 - Background: `bg-c-background` (main page)
 - Cards/Panels: `bg-c-primary/10` (light tint), `bg-c-primary/20` (medium)
 - Buttons: `bg-c-accent/80 text-c-background` (accent buttons), `border-c-accent`
@@ -537,7 +543,7 @@ bg-c-background, text-c-text, bg-c-primary, border-c-accent, etc.
 - Shadows: `shadow-sm` for cards, `shadow` for elevated elements
 
 ### Component Patterns
-**Info Panels** (ref: `migration_source/oe-app-docker-compose/src/resources/views/posts/index.blade.php`):
+**Info Panels** (ref: `no_laravel/migration_source/oe-app-docker-compose/src/resources/views/posts/index.blade.php`):
 ```blade
 <div class="mb-4 flex rounded-lg bg-c-background p-4 text-blue-300" role="alert">
   <svg>...</svg>
@@ -676,9 +682,9 @@ Route::middleware('auth')->group(function () {
 });
 ```
 
-## Reference Files for Patterns in migration_source/kleinanz-slim/ (laravel old version)
+## Reference Files for Patterns in no_laravel/migration_source/kleinanz-slim/ (laravel old version)
 Use this only for generic insight and not as code best practice, since they are outdate versions.
-**Streamlit Features** (`migration_source/kleinanz-slim/`):
+**Streamlit Features** (`no_laravel/migration_source/kleinanz-slim/`):
 - Ad schema: `app/anzeigen_schema.py`
 - Image processing: `app/services/image_processing.py`
 - Auto-crop: `app/services/auto_crop.py`
@@ -687,7 +693,7 @@ Use this only for generic insight and not as code best practice, since they are 
 - List view UI: `app/pages/list_ads.py` (lazy_expander pattern)
 - Create flow: `app/pages/create_ads.py`
 
-**Laravel Patterns** (`migration_source/oe-app-docker-compose/src/`):
+**Laravel Patterns** (`no_laravel/migration_source/oe-app-docker-compose/src/`):
 - Image handling: `app/Actions/StoreImage.php`, `app/Models/Image.php`
 - Post model: `app/Models/Post.php` (similar structure to Ad)
 - Blade layout: `resources/views/layouts/app.blade.php`
@@ -699,7 +705,7 @@ Use this only for generic insight and not as code best practice, since they are 
 ### External Dependencies
 - **OpenAI API**: `gpt-4o-mini` for text generation (key in `.env` or `users.openai_api_key`)
 - **YOLO Auto-Crop**: Native PHP ONNX (recommended)
-  - **Why?** ONNX already proven in Streamlit app (`migration_source/kleinanz-slim/app/services/auto_crop.py`)
+  - **Why?** ONNX already proven in Streamlit app (`no_laravel/migration_source/kleinanz-slim/app/services/auto_crop.py`)
   - **How:** Use `ax/onnxruntime` PHP package + reuse ONNX model from Streamlit
   - **Alternative:** Python subprocess if VPS/dedicated (for Python heavy environments)
   - **Model:** `yolov8n-fashionpedia` (fashion detection, CPU-friendly)
