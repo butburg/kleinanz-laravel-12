@@ -1,0 +1,171 @@
+# Kleinanzeigen Laravel 12
+
+AI-powered classified ads generator built with Laravel 12, Svelte 5, and TailwindCSS.
+
+## Quick Start
+
+### Prerequisites
+- PHP 8.3+
+- Node.js 20+
+- Composer
+
+### Installation
+
+1. **Clone and setup:**
+```bash
+cd larasvelte
+composer install
+npm install
+```
+
+2. **Configure environment:**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+3. **Setup database:**
+```bash
+touch database/database.sqlite
+php artisan migrate:fresh --seed
+```
+
+### Running Locally
+
+You need **two terminal tabs**:
+
+**Terminal 1 - Laravel Server:**
+```bash
+php artisan serve
+```
+Server runs at: `http://localhost:8000`
+
+**Terminal 2 - Vite Dev Server (in same directory):**
+```bash
+npm run dev
+```
+Vite runs in the background for hot module reloading.
+
+Then open **http://localhost:8000** in your browser.
+
+### Default Test Credentials
+
+You will find them in larasvelte/database/seeders/DefaultUserSeeder.php
+
+
+**Email:** `test@example.com`
+**Password:** `password`
+
+These are automatically created when you run `php artisan migrate:fresh --seed`.
+
+## Development
+
+### Available Commands
+
+**Backend:**
+```bash
+php artisan serve              # Start Laravel dev server
+php artisan migrate            # Run migrations
+php artisan tinker            # Interactive PHP shell
+php artisan queue:work        # Process async jobs
+```
+
+**Frontend:**
+```bash
+npm run dev                    # Start Vite dev server
+npm run build                  # Build for production
+npm run lint                   # Run ESLint
+npm run format                 # Format code with Prettier
+```
+
+### Project Structure
+
+```
+larasvelte/
+├── app/                       # Laravel application code
+│   ├── Http/Controllers/
+│   ├── Models/
+│   └── Services/
+├── database/
+│   ├── migrations/
+│   ├── seeders/
+│   └── factories/
+├── resources/
+│   ├── js/                    # Svelte components
+│   ├── css/                   # TailwindCSS
+│   └── views/
+├── routes/
+│   └── web.php
+├── tests/                     # Pest tests
+├── config/ads.php             # Application configuration
+└── .env                       # Environment variables
+```
+
+### Configuration
+
+**Application Logic:** [config/ads.php](larasvelte/config/ads.php)
+- Image processing settings
+- Auto-crop YOLO configuration
+- Validation rules
+- Business logic constants
+
+**Environment Variables:** [.env](larasvelte/.env)
+- `OPENAI_API_KEY` - Required for text generation
+- `DB_DATABASE` - SQLite database path
+- Debug and queue settings
+
+## Features
+
+- **Ad Management**: Create, edit, archive classified ads
+- **Multi-Image Upload**: Upload up to 10 images with client-side compression
+- **AI Text Generation**: Generate ad titles and descriptions using OpenAI
+- **Auto-Crop**: Automatic image cropping with YOLO
+- **Image Variants**: Original and cropped versions for each image
+- **Responsive UI**: Mobile-first design with Svelte + TailwindCSS
+
+## Testing
+
+```bash
+php artisan test                    # Run all tests
+php artisan test --parallel         # Run tests in parallel
+./vendor/bin/phpunit --coverage     # Generate coverage report
+```
+
+## Documentation
+
+See [docs/](no_laravel/docs/) for detailed guides:
+- `ai-assisted-development.md` - AI workflow and architecture
+- `eloquent-orm-getting-started.md` - Database patterns
+- `browser-testing-pest-v4.md` - Testing guide
+- `validation.md` - Form validation patterns
+
+## Troubleshooting
+
+**Database error?**
+```bash
+rm database/database.sqlite
+touch database/database.sqlite
+php artisan migrate:fresh --seed
+```
+
+**Dependencies not installed?**
+```bash
+composer install
+npm install
+```
+
+**Port 8000 already in use?**
+```bash
+php artisan serve --port=8001
+```
+
+**Vite not updating changes?**
+Restart the dev server:
+```bash
+# Kill (Ctrl+C) and restart
+npm run dev
+```
+
+## License
+
+This project is private. See LICENSE file for details.

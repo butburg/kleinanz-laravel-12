@@ -34,3 +34,5 @@ Homestead.json
 /public/livewire
 /public/mix-manifest.json
 /storage/mix-manifest.json
+no_laravel/old ad data/ad_images.sql
+no_laravel/old ad data/ads.sql
