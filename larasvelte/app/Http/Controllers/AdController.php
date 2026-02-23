@@ -53,7 +53,7 @@ class AdController extends Controller
         $titleImage = $ad->images->firstWhere('is_title', true) ?? $ad->images->first();
         $thumbPath = $titleImage?->cropped_thumb_path ?? $titleImage?->large_thumb_path;
 
-        return $thumbPath ? Storage::disk('public')->url($thumbPath) : null;
+        return $thumbPath ? $this->encodeStorageUrl($thumbPath) : null;
     }
 
     private function listImageDownloadPayload(Ad $ad, AdImage $image): array
@@ -71,9 +71,22 @@ class AdController extends Controller
     private function storeImageVariants(Ad $ad, UploadedFile $file): array
     {
         $largePath = $file->store("ads/{$ad->id}/large", 'public');
-        $largeThumbPath = "ads/{$ad->id}/large_thumb/".basename($largePath);
+        $largeThumbPath = "ads/{$ad->id}/large_thumb/" . basename($largePath);
 
-        Storage::disk('public')->copy($largePath, $largeThumbPath);
+        // Create proper thumbnail instead of copying full image
+        $fullImagePath = Storage::disk('public')->path($largePath);
+        $image = Image::read($fullImagePath);
+
+        // Resize to thumbnail dimensions
+        $thumbnail = $image->scaleDown(
+            config('ads.image.thumbnail_width'),
+            config('ads.image.thumbnail_max_height')
+        );
+
+        Storage::disk('public')->put(
+            $largeThumbPath,
+            $thumbnail->toJpeg(quality: 75, progressive: true)
+        );
 
         return [
             'large_path' => $largePath,
@@ -90,16 +103,31 @@ class AdController extends Controller
         return [
             'id' => $image->id,
             'original_name' => $image->original_name,
-            'url' => Storage::disk('public')->url($thumbPath),
+            'url' => $this->encodeStorageUrl($thumbPath),
             'variants' => [
-                'large' => Storage::disk('public')->url($image->large_path),
-                'large_thumb' => Storage::disk('public')->url($image->large_thumb_path),
-                'cropped' => $image->cropped_path ? Storage::disk('public')->url($image->cropped_path) : null,
-                'cropped_thumb' => $image->cropped_thumb_path ? Storage::disk('public')->url($image->cropped_thumb_path) : null,
+                'large' => $this->encodeStorageUrl($image->large_path),
+                'large_thumb' => $this->encodeStorageUrl($image->large_thumb_path),
+                'cropped' => $image->cropped_path ? $this->encodeStorageUrl($image->cropped_path) : null,
+                'cropped_thumb' => $image->cropped_thumb_path ? $this->encodeStorageUrl($image->cropped_thumb_path) : null,
             ],
             'is_title' => $image->is_title,
-            'position' => $image->position,
         ];
+    }
+
+    /**
+     * Generate a properly encoded storage URL that handles special characters like + in paths
+     * By encoding each path segment separately, we preserve the directory structure
+     */
+    private function encodeStorageUrl(string $path): string
+    {
+        $baseUrl = Storage::disk('public')->url('');
+
+        // Split path by / and encode each segment separately
+        $segments = explode('/', $path);
+        $encodedSegments = array_map('rawurlencode', $segments);
+        $encodedPath = implode('/', $encodedSegments);
+
+        return $baseUrl . $encodedPath;
     }
 
     private function formOptions(): array
@@ -125,15 +153,12 @@ class AdController extends Controller
             return;
         }
 
-        $maxPosition = $ad->images()->max('position');
-        $startingPosition = $maxPosition === null ? 0 : ($maxPosition + 1);
-        foreach ($files as $offset => $file) {
+        foreach ($files as $file) {
             $variants = $this->storeImageVariants($ad, $file);
 
             $ad->images()->create([
                 ...$variants,
                 'original_name' => $file->getClientOriginalName(),
-                'position' => $startingPosition + $offset,
                 'is_title' => false,
             ]);
         }
@@ -141,7 +166,7 @@ class AdController extends Controller
         $hasTitle = $ad->images()->where('is_title', true)->exists();
 
         if (! $hasTitle) {
-            $newTitleImageId = $ad->images()->oldest('position')->value('id');
+            $newTitleImageId = $ad->images()->oldest()->value('id');
             if ($newTitleImageId !== null) {
                 $ad->images()->where('is_title', true)->update(['is_title' => false]);
                 $ad->images()->whereKey($newTitleImageId)->update(['is_title' => true]);
@@ -158,11 +183,11 @@ class AdController extends Controller
     {
         $ads = Ad::query()
             ->whereBelongsTo($request->user())
-            ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,is_title,position'])
+            ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,is_title'])
             ->latest()
             ->paginate(12)
             ->withQueryString()
-            ->through(fn (Ad $ad): array => [
+            ->through(fn(Ad $ad): array => [
                 'id' => $ad->id,
                 'title' => $ad->title,
                 'description' => $ad->description,
@@ -172,7 +197,7 @@ class AdController extends Controller
                 ...$this->expiryDetails($ad),
                 'thumbnail_url' => $this->listThumbnailUrl($ad),
                 'images' => $ad->images
-                    ->map(fn (AdImage $image): array => $this->listImageDownloadPayload($ad, $image))
+                    ->map(fn(AdImage $image): array => $this->listImageDownloadPayload($ad, $image))
                     ->values()
                     ->all(),
             ]);
@@ -221,7 +246,7 @@ class AdController extends Controller
                 ...$ad->toArray(),
                 'images' => $ad->images()
                     ->get()
-                    ->map(fn (AdImage $image): array => $this->imagePayload($image))
+                    ->map(fn(AdImage $image): array => $this->imagePayload($image))
                     ->values()
                     ->all(),
             ],
@@ -311,7 +336,7 @@ class AdController extends Controller
         $adImage->delete();
 
         if ($deletedWasTitle) {
-            $nextImageId = $ad->images()->orderBy('position')->value('id');
+            $nextImageId = $ad->images()->orderBy('created_at')->value('id');
             if ($nextImageId !== null) {
                 $ad->images()->whereKey($nextImageId)->update(['is_title' => true]);
             }
