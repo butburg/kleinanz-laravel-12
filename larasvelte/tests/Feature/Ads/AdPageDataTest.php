@@ -19,6 +19,7 @@ it('provides select options to the create ad page', function (): void {
                 ->where('options.conditions', config('ads.validation.conditions'))
                 ->where('options.shipping', config('ads.validation.shipping_options'))
                 ->where('options.statuses', config('ads.status.options'))
+                ->where('options.limits.prompt', config('ads.validation.prompt_max_length'))
         );
 });
 
@@ -34,6 +35,7 @@ it('provides ad and options to the edit page', function (): void {
                 ->component('ads/Edit')
                 ->where('ad.id', $ad->id)
                 ->where('options.statuses', config('ads.status.options'))
+                ->where('options.limits.prompt', config('ads.validation.prompt_max_length'))
         );
 });
 

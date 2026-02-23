@@ -17,6 +17,7 @@
                 title: number;
                 description: number;
                 images: number;
+                prompt: number;
             };
         };
     }
@@ -37,6 +38,7 @@
     let titleValue = $state('');
     let descriptionValue = $state('');
     let promptValue = $state('');
+    let promptCharacters = $state(0);
     let selectedImageNames = $state<string[]>([]);
     let generateHint = $state<string | null>(null);
 
@@ -117,9 +119,12 @@
                             name="prompt_text"
                             rows="3"
                             class="rounded-md border p-2"
-                            oninput={(event) => (promptValue = (event.currentTarget as HTMLTextAreaElement).value)}
+                            oninput={(event) => {
+                                promptValue = (event.currentTarget as HTMLTextAreaElement).value;
+                                promptCharacters = promptValue.length;
+                            }}
                         >{promptValue}</textarea>
-                        <div class="text-xs text-muted-foreground">{promptValue.length} characters</div>
+                        <div class="text-xs text-muted-foreground">{promptCharacters} / {options.limits.prompt}</div>
                         <InputError message={errors.prompt_text} />
                     </div>
 

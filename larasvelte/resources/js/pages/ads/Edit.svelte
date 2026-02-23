@@ -9,7 +9,7 @@
     import { Form } from '@inertiajs/svelte';
 
     type Ad = {
-        id: number;
+        id: string;
         title: string;
         description: string;
         price: number;
@@ -36,6 +36,7 @@
                 title: number;
                 description: number;
                 images: number;
+                prompt: number;
             };
         };
     }
@@ -56,22 +57,19 @@
     let titleValue = $state('');
     let descriptionValue = $state('');
     let promptValue = $state('');
+    let promptCharacters = $state(0);
     let selectedImageNames = $state<string[]>([]);
-    let generateHint = $state<string | null>(null);
 
     function onImageSelection(event: Event): void {
         const input = event.currentTarget as HTMLInputElement;
         selectedImageNames = Array.from(input.files ?? []).map((file) => file.name);
     }
 
-    function showGenerateHint(): void {
-        generateHint = 'Generate is prepared in UI and will be connected in the next step.';
-    }
-
     $effect(() => {
         titleValue = ad.title;
         descriptionValue = ad.description;
         promptValue = ad.prompt_text ?? '';
+        promptCharacters = promptValue.length;
     });
 </script>
 
@@ -169,9 +167,12 @@
                             name="prompt_text"
                             rows="3"
                             class="rounded-md border p-2"
-                            oninput={(event) => (promptValue = (event.currentTarget as HTMLTextAreaElement).value)}
+                            oninput={(event) => {
+                                promptValue = (event.currentTarget as HTMLTextAreaElement).value;
+                                promptCharacters = promptValue.length;
+                            }}
                         >{promptValue}</textarea>
-                        <div class="text-xs text-muted-foreground">{promptValue.length} characters</div>
+                        <div class="text-xs text-muted-foreground">{promptCharacters} / {options.limits.prompt}</div>
                         <InputError message={errors.prompt_text} />
                     </div>
 
@@ -215,17 +216,23 @@
 
                     <div class="flex flex-wrap gap-2">
                         <Button type="submit" disabled={processing}>Update Ad</Button>
-                        <Button type="button" variant="outline" onclick={showGenerateHint} disabled={ad.images.length === 0}>Generate</Button>
                     </div>
-                    {#if generateHint}
-                        <p class="text-xs text-muted-foreground">{generateHint}</p>
-                    {/if}
                 {/snippet}
             </Form>
 
-            <Form method="delete" action={route('ads.destroy', ad.id)}>
-                <Button type="submit" variant="destructive">Delete Ad</Button>
-            </Form>
+            <div class="flex flex-wrap gap-2">
+                <Form method="post" action={route('ads.generate', ad.id)}>
+                    {#snippet children({ errors, processing }: BaseFormSnippetProps)}
+                        <input type="hidden" name="prompt_text" value={promptValue} />
+                        <Button type="submit" variant="outline" disabled={ad.images.length === 0 || processing}>Generate</Button>
+                        <InputError message={errors.generate} />
+                    {/snippet}
+                </Form>
+
+                <Form method="delete" action={route('ads.destroy', ad.id)}>
+                    <Button type="submit" variant="destructive">Delete Ad</Button>
+                </Form>
+            </div>
         </section>
     </div>
 </AppLayout>

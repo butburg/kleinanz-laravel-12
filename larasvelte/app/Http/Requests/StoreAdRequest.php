@@ -23,23 +23,23 @@ class StoreAdRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:'.config('ads.validation.title_max_length')],
+            'title' => ['required', 'string', 'max:' . config('ads.validation.title_max_length')],
             'description' => [
                 'required',
                 'string',
-                'min:'.config('ads.validation.description_min_length'),
-                'max:'.config('ads.validation.description_max_length'),
+                'min:' . config('ads.validation.description_min_length'),
+                'max:' . config('ads.validation.description_max_length'),
             ],
             'price' => ['required', 'integer', 'min:0'],
             'condition' => ['required', Rule::in(config('ads.validation.conditions'))],
             'shipping' => ['required', Rule::in(config('ads.validation.shipping_options'))],
             'status' => ['nullable', Rule::in(config('ads.status.options'))],
-            'prompt_text' => ['nullable', 'string'],
-            'images' => ['nullable', 'array', 'max:'.config('ads.image.max_files')],
+            'prompt_text' => ['nullable', 'string', 'max:' . config('ads.validation.prompt_max_length')],
+            'images' => ['nullable', 'array', 'max:' . config('ads.image.max_files')],
             'images.*' => [
                 'file',
-                'mimes:'.implode(',', config('ads.image.supported_formats')),
-                'max:'.config('ads.image.max_file_kb'),
+                'mimes:' . implode(',', config('ads.image.supported_formats')),
+                'max:' . config('ads.image.max_file_kb'),
             ],
         ];
     }

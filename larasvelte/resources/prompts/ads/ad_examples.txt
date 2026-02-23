@@ -1,0 +1,49 @@
+{
+  "title": "Bierpong-Luftmatratze fuer den Pool",
+  "description": "Aufblasbare Schwimm-Luftmatratze mit Taschen/Loechern fuer Bierpongbecher (Becher nicht enthalten).\n\nIdeal fuer den Pool oder ruhige Gewaesser. Die Matratze ist dicht und sauber. Luftmatratze ist aktuell nicht aufgeblasen, im zweiten Bild sieht man in etwa wie es funktioniert.\n\nWurde einmal im Wasser genutzt, jedoch nicht als Spiel.\n\nWeitere Aqua-Angebote findest du ueber mein Profil.",
+  "condition": "Sehr gut",
+  "price": 5,
+  "shipping": "mittel"
+}
+{
+  "title": "Sportjacke in Blau-Orange",
+  "description": "Verkaufe eine bequeme Sportjacke in den Farben Blau und Orange. Die Jacke hat einen hohen Kragen und einen durchgehenden Reissverschluss.\n\nIdeal fuer sportliche Aktivitaeten oder als Freizeitkleidung. Die Jacke ist in gutem Zustand.\n\nGroesse: M (bitte nachfragen, falls Unsicherheiten bestehen).\n\nWeitere Angebote findest du ueber mein Profil.",
+  "condition": "Gut",
+  "price": 12,
+  "shipping": "mittel"
+}
+{
+  "title": "Schwimmflossen 44/45 - Aqua-Speed",
+  "description": "Verkaufe ein Paar Taucherflossen von Aqua-Speed inklusive originalem Netzbeutel zum Transport.\n\nGroesse: 44-45 (XL)\nFarbe: Schwarz mit grauem Muster und Glitzerpartikeln\n\nWeitere Aqua-Angebote und mehr findest du ueber mein Profil.",
+  "condition": "Gut",
+  "price": 15,
+  "shipping": "mittel"
+}
+{
+  "title": "Besteckset mit gelben Griffen",
+  "description": "Verkaufe Edelstahl-Besteckset mit gelben Kunststoffgriffen. Enthaelt Essloeffel, Gabeln, Messer und Teeloeffel. Gebraucht, aber sauber, komplett gespuilt und funktional. Geeignet fuer WG, Camping oder Gartenhaus.\n\nIm Set enthalten:\n-Essloeffel\n-Gabeln\n-Messer\n-Teeloeffel\n\nIdeal fuer WG, Camping, Gartenhaus oder als Ersatzbesteck.\n\nWeitere Angebote siehe mein Profil.",
+  "condition": "Gut",
+  "price": 15,
+  "shipping": "mittel"
+}
+{
+  "title": "USB-C Ladegeraet 20 W, neu",
+  "description": "Kompaktes 20-W USB-C Netzteil fuer schnelles Laden.\nOriginalverpackt, unbenutzt und voll funktionsfaehig.\n\nWeitere Angebote siehe mein Profil.",
+  "condition": "Neu",
+  "price": 9,
+  "shipping": "klein"
+}
+{
+  "title": "Kaffeemaschine defekt",
+  "description": "Aeltere Filter-Kaffeemaschine als defekt abzugeben.\nDie Heizung der Kaffeemaschine laeuft sporadisch und der Tropfstopp klemmt.\nKanne fasst 800ml.\n\nFuer Ersatzteile oder zur Reparatur.\n\nWeitere Angebote findest du in meinem Profil.",
+  "condition": "Defekt",
+  "price": 1,
+  "shipping": "mittel"
+}
+{
+  "title": "Handspiegel 6x4cm",
+  "description": "Kleiner Handspiegel 6x4 cm mit schmalem Rahmen.\nLeichte Gebrauchsspuren am Rahmen, Glas besitzt minimale Kratzer.\nInklusive Aufhaengung fuer die Wand.\n\nWeitere Angebote siehe Profil.",
+  "condition": "In Ordnung",
+  "price": 5,
+  "shipping": "klein"
+}

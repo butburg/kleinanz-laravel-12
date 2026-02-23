@@ -27,6 +27,7 @@
 - `no_laravel/docs/svelte-5-migration-guide.md`: Svelte 5 migration notes (runes, events, slots, breaking changes).
 - `no_laravel/docs/testing-getting-started.md`: Laravel testing setup, running tests, parallel/coverage/profiling.
 - `no_laravel/docs/validation.md`: Validation quickstart, FormRequests, validators, and common rules.
+- `no_laravel/docs/openai api responses.md`: OpenAI response patterns to lower costs.
 
 ## Architecture & Data Flow
 

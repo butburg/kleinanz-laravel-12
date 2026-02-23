@@ -34,7 +34,7 @@ class UpdateAdRequest extends FormRequest
             'condition' => ['required', Rule::in(config('ads.validation.conditions'))],
             'shipping' => ['required', Rule::in(config('ads.validation.shipping_options'))],
             'status' => ['required', Rule::in(config('ads.status.options'))],
-            'prompt_text' => ['nullable', 'string'],
+            'prompt_text' => ['nullable', 'string', 'max:' . config('ads.validation.prompt_max_length')],
         ];
     }
 }

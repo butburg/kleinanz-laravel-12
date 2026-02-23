@@ -6,8 +6,11 @@ use App\Http\Requests\StoreAdImageRequest;
 use App\Http\Requests\StoreAdRequest;
 use App\Http\Requests\UpdateAdRequest;
 use App\Http\Requests\UpdateAdStatusRequest;
+use App\Http\Requests\GenerateAdRequest;
 use App\Models\Ad;
 use App\Models\AdImage;
+use App\Services\TextGenerationException;
+use App\Services\TextGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -151,6 +154,7 @@ class AdController extends Controller
                 'title' => config('ads.validation.title_max_length'),
                 'description' => config('ads.validation.description_max_length'),
                 'images' => config('ads.image.max_files'),
+                'prompt' => config('ads.validation.prompt_max_length'),
             ],
         ];
     }
@@ -277,6 +281,31 @@ class AdController extends Controller
         $ad->update($payload);
 
         return to_route('ads.index')->with('success', 'Ad updated successfully.');
+    }
+
+    public function generate(GenerateAdRequest $request, Ad $ad, TextGenerationService $generator): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+
+        try {
+            $promptText = $request->validated('prompt_text');
+            $generated = $generator->generateForAd($ad, $request->user(), $promptText);
+        } catch (TextGenerationException $exception) {
+            return back()
+                ->withErrors(['generate' => $exception->getMessage()])
+                ->with('error', 'Text generation failed.');
+        }
+
+        $ad->update([
+            'title' => $generated['title'],
+            'description' => $generated['description'],
+            'price' => $generated['price'],
+            'condition' => $generated['condition'],
+            'shipping' => $generated['shipping'],
+            'prompt_text' => $promptText,
+        ]);
+
+        return to_route('ads.edit', $ad)->with('success', 'Text generated successfully.');
     }
 
     public function destroy(Ad $ad): RedirectResponse
