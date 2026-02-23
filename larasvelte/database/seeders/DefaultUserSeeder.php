@@ -9,11 +9,14 @@ class DefaultUserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * After change run php artisan db:seed --class=DefaultUserSeeder
+     *
      */
     public function run(): void
     {
         User::query()->updateOrCreate(
-            ['email' => 'default@example.test'],
+            ['email' => 'test@example.com'],
             [
                 'name' => 'Default Test User',
                 'email_verified_at' => now(),
