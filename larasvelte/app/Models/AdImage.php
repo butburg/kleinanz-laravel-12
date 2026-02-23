@@ -15,12 +15,12 @@ class AdImage extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'ad_id',
         'large_path',
         'large_thumb_path',
         'cropped_path',
         'cropped_thumb_path',
         'original_name',
-        'position',
         'is_title',
     ];
 
