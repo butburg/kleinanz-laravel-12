@@ -18,6 +18,7 @@ class AdFactory extends Factory
     public function definition(): array
     {
         return [
+            'id' => fake()->unique()->uuid(),
             'user_id' => User::factory(),
             'title' => fake()->words(3, true),
             'description' => fake()->paragraphs(2, true),
