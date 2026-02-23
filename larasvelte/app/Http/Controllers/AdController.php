@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdController extends Controller
@@ -74,19 +76,25 @@ class AdController extends Controller
         $largeThumbPath = "ads/{$ad->id}/large_thumb/" . basename($largePath);
 
         // Create proper thumbnail instead of copying full image
-        $fullImagePath = Storage::disk('public')->path($largePath);
-        $image = Image::read($fullImagePath);
+        try {
+            $manager = new ImageManager(new Driver());
+            $fullImagePath = Storage::disk('public')->path($largePath);
+            $image = $manager->read($fullImagePath);
 
-        // Resize to thumbnail dimensions
-        $thumbnail = $image->scaleDown(
-            config('ads.image.thumbnail_width'),
-            config('ads.image.thumbnail_max_height')
-        );
+            // Resize to thumbnail dimensions
+            $thumbnail = $image->scaleDown(
+                config('ads.image.thumbnail_width'),
+                config('ads.image.thumbnail_max_height')
+            );
 
-        Storage::disk('public')->put(
-            $largeThumbPath,
-            $thumbnail->toJpeg(quality: 75, progressive: true)
-        );
+            Storage::disk('public')->put(
+                $largeThumbPath,
+                $thumbnail->toJpeg(quality: 75, progressive: true)
+            );
+        } catch (\Intervention\Image\Exceptions\DecoderException $e) {
+            // If image can't be decoded (e.g., AVIF with GD driver), just copy the file
+            Storage::disk('public')->copy($largePath, $largeThumbPath);
+        }
 
         return [
             'large_path' => $largePath,
