@@ -13,17 +13,17 @@ return new class extends Migration
     {
         Schema::create('ad_images', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('ad_id')->constrained()->cascadeOnDelete();
+            $table->string('ad_id', 64);
+            $table->foreign('ad_id')->references('id')->on('ads')->cascadeOnDelete();
             $table->string('large_path');
             $table->string('large_thumb_path');
             $table->string('cropped_path')->nullable();
             $table->string('cropped_thumb_path')->nullable();
             $table->string('original_name');
-            $table->unsignedTinyInteger('position');
             $table->boolean('is_title')->default(false);
             $table->timestamps();
 
-            $table->index(['ad_id', 'position']);
+            $table->index('ad_id');
         });
     }
 

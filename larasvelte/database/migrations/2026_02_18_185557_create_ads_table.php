@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ads', function (Blueprint $table) {
-            $table->id();
+            $table->string('id', 64)->primary();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('title', 80);
             $table->text('description');
@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('status', 20)->default('Entwurf');
             $table->text('prompt_text')->nullable();
             $table->json('metadata')->nullable();
+            $table->timestamp('last_online_at')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'status']);
