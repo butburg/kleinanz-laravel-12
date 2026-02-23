@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Hash;
 it('seeds a deterministic default testing user', function (): void {
     Artisan::call('db:seed');
 
-    $user = User::query()->where('email', 'default@example.test')->first();
+    $user = User::query()->where('email', 'test@example.com')->first();
 
     expect($user)->not->toBeNull();
     expect($user?->name)->toBe('Default Test User');
@@ -18,5 +18,5 @@ it('does not create duplicate default users when seeding twice', function (): vo
     Artisan::call('db:seed');
     Artisan::call('db:seed');
 
-    expect(User::query()->where('email', 'default@example.test')->count())->toBe(1);
+    expect(User::query()->where('email', 'test@example.com')->count())->toBe(1);
 });

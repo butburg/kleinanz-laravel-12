@@ -9,7 +9,6 @@ it('renders gallery thumbnail for ad list item', function (): void {
     $ad = Ad::factory()->for($user)->create(['title' => 'Thumbnail list ad']);
     AdImage::factory()->for($ad)->create([
         'is_title' => true,
-        'position' => 0,
         'large_thumb_path' => 'ads/list-thumb.jpg',
         'cropped_thumb_path' => null,
         'original_name' => 'list-thumb.jpg',

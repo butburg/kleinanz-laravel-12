@@ -8,14 +8,12 @@ it('lets user switch the title image from the edit page', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Image title switch']);
     $first = AdImage::factory()->for($ad)->create([
-        'position' => 0,
         'is_title' => true,
         'large_path' => 'ads/sample-first.jpg',
         'large_thumb_path' => 'ads/sample-first-thumb.jpg',
         'original_name' => 'first.jpg',
     ]);
     $second = AdImage::factory()->for($ad)->create([
-        'position' => 1,
         'is_title' => false,
         'large_path' => 'ads/sample-second.jpg',
         'large_thumb_path' => 'ads/sample-second-thumb.jpg',
@@ -42,21 +40,18 @@ it('lets user change the title image multiple times from the edit page', functio
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Multiple title switches']);
     $first = AdImage::factory()->for($ad)->create([
-        'position' => 0,
         'is_title' => true,
         'large_path' => 'ads/switch-first.jpg',
         'large_thumb_path' => 'ads/switch-first-thumb.jpg',
         'original_name' => 'switch-first.jpg',
     ]);
     $second = AdImage::factory()->for($ad)->create([
-        'position' => 1,
         'is_title' => false,
         'large_path' => 'ads/switch-second.jpg',
         'large_thumb_path' => 'ads/switch-second-thumb.jpg',
         'original_name' => 'switch-second.jpg',
     ]);
     $third = AdImage::factory()->for($ad)->create([
-        'position' => 2,
         'is_title' => false,
         'large_path' => 'ads/switch-third.jpg',
         'large_thumb_path' => 'ads/switch-third-thumb.jpg',
@@ -93,14 +88,12 @@ it('lets user delete a non-title image from the edit page', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Delete non-title image']);
     $title = AdImage::factory()->for($ad)->create([
-        'position' => 0,
         'is_title' => true,
         'large_path' => 'ads/delete-title.jpg',
         'large_thumb_path' => 'ads/delete-title-thumb.jpg',
         'original_name' => 'delete-title.jpg',
     ]);
     $toDelete = AdImage::factory()->for($ad)->create([
-        'position' => 1,
         'is_title' => false,
         'large_path' => 'ads/delete-me.jpg',
         'large_thumb_path' => 'ads/delete-me-thumb.jpg',
@@ -128,14 +121,12 @@ it('promotes another image as title when deleting current title image from edit 
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Delete title image']);
     $title = AdImage::factory()->for($ad)->create([
-        'position' => 0,
         'is_title' => true,
         'large_path' => 'ads/old-title.jpg',
         'large_thumb_path' => 'ads/old-title-thumb.jpg',
         'original_name' => 'old-title.jpg',
     ]);
     $fallback = AdImage::factory()->for($ad)->create([
-        'position' => 1,
         'is_title' => false,
         'large_path' => 'ads/new-title.jpg',
         'large_thumb_path' => 'ads/new-title-thumb.jpg',
@@ -163,21 +154,18 @@ it('renders an image preview card for each ad image on edit page', function (): 
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Preview grid']);
     $first = AdImage::factory()->for($ad)->create([
-        'position' => 0,
         'is_title' => true,
         'large_path' => 'ads/grid-first.jpg',
         'large_thumb_path' => 'ads/grid-first-thumb.jpg',
         'original_name' => 'grid-first.jpg',
     ]);
     $second = AdImage::factory()->for($ad)->create([
-        'position' => 1,
         'is_title' => false,
         'large_path' => 'ads/grid-second.jpg',
         'large_thumb_path' => 'ads/grid-second-thumb.jpg',
         'original_name' => 'grid-second.jpg',
     ]);
     $third = AdImage::factory()->for($ad)->create([
-        'position' => 2,
         'is_title' => false,
         'large_path' => 'ads/grid-third.jpg',
         'large_thumb_path' => 'ads/grid-third-thumb.jpg',

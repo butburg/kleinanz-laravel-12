@@ -30,7 +30,7 @@ it('stores up to ten images and marks the first image as title on create', funct
 
     expect(AdImage::query()->where('ad_id', $ad->id)->count())->toBe(3);
     expect(AdImage::query()->where('ad_id', $ad->id)->where('is_title', true)->count())->toBe(1);
-    expect(AdImage::query()->where('ad_id', $ad->id)->where('position', 0)->first()?->is_title)->toBeTrue();
+    expect(AdImage::query()->where('ad_id', $ad->id)->oldest()->first()?->is_title)->toBeTrue();
 
     $storedImage = AdImage::query()->where('ad_id', $ad->id)->firstOrFail();
 
@@ -70,7 +70,7 @@ it('rejects creating ads with more than ten images', function (): void {
     $user = User::factory()->create();
 
     $images = collect(range(1, 11))
-        ->map(fn (int $i): UploadedFile => UploadedFile::fake()->image("file-{$i}.jpg"))
+        ->map(fn(int $i): UploadedFile => UploadedFile::fake()->image("file-{$i}.jpg"))
         ->all();
 
     $this->actingAs($user)->post(route('ads.store'), [
@@ -102,7 +102,7 @@ it('uses the first uploaded image as title image when no title index is provided
 
     $ad = Ad::query()->where('user_id', $user->id)->latest()->firstOrFail();
 
-    expect(AdImage::query()->where('ad_id', $ad->id)->where('position', 0)->first()?->is_title)->toBeTrue();
+    expect(AdImage::query()->where('ad_id', $ad->id)->oldest()->first()?->is_title)->toBeTrue();
     expect(AdImage::query()->where('ad_id', $ad->id)->where('is_title', true)->count())->toBe(1);
 });
 
@@ -126,8 +126,8 @@ it('allows adding more images during edit without changing existing title image'
 
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
-    $title = AdImage::factory()->for($ad)->create(['position' => 0, 'is_title' => true]);
-    AdImage::factory()->for($ad)->create(['position' => 1, 'is_title' => false]);
+    $title = AdImage::factory()->for($ad)->create(['is_title' => true]);
+    AdImage::factory()->for($ad)->create(['is_title' => false]);
 
     $this->actingAs($user)->post(route('ads.images.store', $ad), [
         'images' => [
@@ -138,20 +138,15 @@ it('allows adding more images during edit without changing existing title image'
 
     expect(AdImage::query()->where('ad_id', $ad->id)->count())->toBe(4);
     expect($title->fresh()?->is_title)->toBeTrue();
-    expect(AdImage::query()->where('ad_id', $ad->id)->orderBy('position')->pluck('position')->all())
-        ->toBe([0, 1, 2, 3]);
+    expect(AdImage::query()->where('ad_id', $ad->id)->count())->toBe(4);
 });
 
 it('rejects adding images that exceed the total maximum for an ad', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
 
-    foreach (range(0, 8) as $position) {
-        AdImage::factory()->for($ad)->create([
-            'position' => $position,
-            'is_title' => $position === 0,
-        ]);
-    }
+    AdImage::factory()->for($ad)->create(['is_title' => true]);
+    AdImage::factory()->for($ad)->count(8)->create(['is_title' => false]);
 
     $this->actingAs($user)->post(route('ads.images.store', $ad), [
         'images' => [
@@ -168,8 +163,8 @@ it('rejects adding images that exceed the total maximum for an ad', function ():
 it('allows selecting a different title image and keeps exactly one title image', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
-    $first = AdImage::factory()->for($ad)->create(['position' => 0, 'is_title' => true]);
-    $second = AdImage::factory()->for($ad)->create(['position' => 1, 'is_title' => false]);
+    $first = AdImage::factory()->for($ad)->create(['is_title' => true]);
+    $second = AdImage::factory()->for($ad)->create(['is_title' => false]);
 
     $this->actingAs($user)
         ->patch(route('ads.images.set-title', [$ad, $second]))
@@ -183,8 +178,8 @@ it('allows selecting a different title image and keeps exactly one title image',
 it('promotes another image as title when deleting the current title image', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
-    $title = AdImage::factory()->for($ad)->create(['position' => 0, 'is_title' => true]);
-    $fallback = AdImage::factory()->for($ad)->create(['position' => 1, 'is_title' => false]);
+    $title = AdImage::factory()->for($ad)->create(['is_title' => true]);
+    $fallback = AdImage::factory()->for($ad)->create(['is_title' => false]);
 
     $this->actingAs($user)
         ->delete(route('ads.images.destroy', [$ad, $title]))

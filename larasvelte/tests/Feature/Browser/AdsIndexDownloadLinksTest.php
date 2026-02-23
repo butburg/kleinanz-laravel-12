@@ -7,8 +7,7 @@ use App\Models\User;
 it('shows per-image download actions on ads index', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create(['title' => 'Download list ad']);
-    AdImage::factory()->for($ad)->create(['position' => 0]);
-    AdImage::factory()->for($ad)->create(['position' => 1]);
+    AdImage::factory()->for($ad)->count(2)->create();
 
     $this->actingAs($user);
 

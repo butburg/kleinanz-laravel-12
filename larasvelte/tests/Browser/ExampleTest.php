@@ -19,11 +19,11 @@ test('guest can navigate from welcome page to login page', function (): void {
 test('seeded default user can log in from the browser and reach dashboard', function (): void {
     $page = visit('/login');
 
-    $page->fill('email', 'default@example.test')
+    $page->fill('email', 'test@example.com')
         ->fill('password', 'password')
         ->click('Log in')
         ->assertPathIs('/dashboard')
         ->assertSee('Dashboard');
 
-    $this->assertAuthenticatedAs(User::query()->where('email', 'default@example.test')->firstOrFail());
+    $this->assertAuthenticatedAs(User::query()->where('email', 'test@example.com')->firstOrFail());
 });

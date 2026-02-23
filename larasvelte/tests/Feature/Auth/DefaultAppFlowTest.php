@@ -11,29 +11,30 @@ beforeEach(function (): void {
 it('renders the default welcome and login pages', function (): void {
     $this->get(route('home'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('Welcome')
-            ->where('canRegister', true)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('Welcome')
+                ->where('canRegister', true)
         );
 
     $this->get(route('login'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('auth/Login'));
+        ->assertInertia(fn(Assert $page) => $page->component('auth/Login'));
 });
 
 it('allows the seeded default user to authenticate and access dashboard', function (): void {
     $response = $this->post(route('login'), [
-        'email' => 'default@example.test',
+        'email' => 'test@example.com',
         'password' => 'password',
     ]);
 
     $response->assertRedirect(route('dashboard', absolute: false));
     $this->assertAuthenticated();
 
-    $user = User::query()->where('email', 'default@example.test')->firstOrFail();
+    $user = User::query()->where('email', 'test@example.com')->firstOrFail();
 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Dashboard'));
+        ->assertInertia(fn(Assert $page) => $page->component('Dashboard'));
 });
