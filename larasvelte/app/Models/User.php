@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'openai_api_key',
+        'use_test_mode',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'openai_api_key' => 'encrypted',
+            'use_test_mode' => 'boolean',
         ];
     }
 

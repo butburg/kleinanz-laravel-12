@@ -235,10 +235,17 @@ class AdController extends Controller
                     ->all(),
             ]);
 
+        $user = $request->user();
+        $hasUserApiKey = ! empty($user->openai_api_key);
+
         return Inertia::render('ads/Index', [
             'ads' => $ads,
             'statusOptions' => config('ads.status.options'),
             'options' => $this->formOptions(),
+            'aiStatus' => [
+                'use_test_mode' => $user->use_test_mode,
+                'has_user_api_key' => $hasUserApiKey,
+            ],
         ]);
     }
 

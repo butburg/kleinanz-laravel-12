@@ -53,6 +53,10 @@
                 };
             };
         };
+        aiStatus?: {
+            use_test_mode: boolean;
+            has_user_api_key: boolean;
+        };
         flash?: {
             success?: string | null;
             error?: string | null;
@@ -71,7 +75,7 @@
         },
     ];
 
-    let { ads, statusOptions, options, flash, errors }: Props = $props();
+    let { ads, statusOptions, options, aiStatus, flash, errors }: Props = $props();
     let copyFeedback = $state<string | null>(null);
 
     // Create ad state
@@ -359,6 +363,29 @@
                 Create Ad
             </summary>
             <div class="space-y-4 border-t px-4 py-4">
+                <!-- AI Status Warnings -->
+                {#if aiStatus?.use_test_mode}
+                    <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
+                        <p class="font-medium">ℹ️ Test Mode Enabled</p>
+                        <p class="mt-1 text-xs">
+                            Using mock AI generator. No API costs.
+                            <Link href={route('api-key.edit')} class="underline hover:text-blue-900 dark:hover:text-blue-100">
+                                Disable in settings
+                            </Link>
+                        </p>
+                    </div>
+                {:else if !aiStatus?.has_user_api_key}
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                        <p class="font-medium">⚠️ No API Key Configured</p>
+                        <p class="mt-1 text-xs">
+                            Using mock AI generator. To use real OpenAI generation,
+                            <Link href={route('api-key.edit')} class="underline hover:text-amber-900 dark:hover:text-amber-100">
+                                add your API key in settings
+                            </Link>
+                        </p>
+                    </div>
+                {/if}
+
                 <!-- Upload Images Section -->
                 <div class="space-y-2">
                     <Label for="create-images">Upload Images</Label>
