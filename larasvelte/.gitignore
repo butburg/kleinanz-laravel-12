@@ -12,6 +12,7 @@
 /resources/js/wayfinder
 /storage/*.key
 /storage/pail
+/storage/models/*.onnx
 /vendor
 .env
 .env.backup
@@ -30,3 +31,5 @@ yarn-error.log
 /.zed
 .DS_Store
 /.claude
+/venv
+/.venv
