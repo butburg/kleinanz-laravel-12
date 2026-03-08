@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateApiKeyRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,6 +28,7 @@ class ApiKeyController extends Controller
         return Inertia::render('settings/ApiKey', [
             'maskedApiKey' => $maskedApiKey,
             'status' => $request->session()->get('status'),
+            'useTestMode' => $user->use_test_mode,
         ]);
     }
 
@@ -53,6 +56,49 @@ class ApiKeyController extends Controller
 
         return to_route('api-key.edit')
             ->with('status', 'API key removed successfully.');
+    }
+
+    /**
+     * Test the user's OpenAI API key.
+     */
+    public function test(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $apiKey = $user->openai_api_key;
+
+        if (!$apiKey) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No API key configured',
+            ], 400);
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                ])
+                ->get('https://api.openai.com/v1/models', [
+                    'limit' => 1,
+                ]);
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'API key is valid! ✓',
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'API key validation failed: ' . ($response->json('error.message') ?? 'Unknown error'),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Connection error: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

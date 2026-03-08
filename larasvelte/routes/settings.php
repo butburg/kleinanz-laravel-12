@@ -8,13 +8,12 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', '/settings/profile');
-
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('settings/api-key', [ApiKeyController::class, 'edit'])->name('api-key.edit');
     Route::post('settings/api-key', [ApiKeyController::class, 'update'])->name('api-key.update');
+    Route::post('settings/api-key/test', [ApiKeyController::class, 'test'])->name('api-key.test');
     Route::delete('settings/api-key', [ApiKeyController::class, 'destroy'])->name('api-key.destroy');
 });
 

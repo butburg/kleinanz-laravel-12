@@ -17,15 +17,23 @@
     import AppLayout from '@/layouts/AppLayout.svelte';
     import SettingsLayout from '@/layouts/settings/Layout.svelte';
     import { type BreadcrumbItem } from '@/types';
-    import { Form, page } from '@inertiajs/svelte';
+    import { Form, router, page } from '@inertiajs/svelte';
     import { fade } from 'svelte/transition';
+    import Loader2 from '@lucide/svelte/icons/loader-2';
 
     interface Props {
         maskedApiKey?: string | null;
         status?: string;
+        useTestMode?: boolean;
     }
 
-    let { maskedApiKey, status }: Props = $props();
+    let { maskedApiKey, status, useTestMode = false }: Props = $props();
+
+    // Reactive state that updates when page props change
+    let testModeEnabled = $state(useTestMode);
+    $effect(() => {
+        testModeEnabled = useTestMode;
+    });
 
     const breadcrumbItems: BreadcrumbItem[] = [
         {
@@ -37,6 +45,9 @@
     let apiKeyInput = $state(null as unknown as HTMLInputElement);
     let isAddingKey = $state(!maskedApiKey);
     let showDeleteDialog = $state(false);
+    let testMode = $state(false);
+    let testLoading = $state(false);
+    let testResult = $state<{ success: boolean; message: string } | null>(null);
 </script>
 
 <svelte:head>
@@ -117,6 +128,66 @@
                 </div>
             {/if}
 
+            {#if maskedApiKey && !isAddingKey}
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-sm font-medium">Test API Key</h3>
+                        <p class="text-xs text-neutral-600 dark:text-neutral-400">Verify your API key is working correctly</p>
+                    </div>
+
+                    <Button
+                        variant="outline"
+                        disabled={testLoading}
+                        onclick={async () => {
+                            testLoading = true;
+                            testResult = null;
+                            try {
+                                const response = await fetch(route('api-key.test'), {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                    },
+                                });
+
+                                const data = await response.json();
+                                testResult = {
+                                    success: response.ok,
+                                    message: data.message || (response.ok ? 'API key is valid!' : 'API key test failed'),
+                                };
+                            } catch (error) {
+                                testResult = {
+                                    success: false,
+                                    message: 'Error testing API key: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                                };
+                            } finally {
+                                testLoading = false;
+                            }
+                        }}
+                    >
+                        {#if testLoading}
+                            <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                            Testing...
+                        {:else}
+                            Test Connection
+                        {/if}
+                    </Button>
+
+                    {#if testResult}
+                        <div
+                            class={`rounded-lg border p-3 transition-all duration-200 ${
+                                testResult.success
+                                    ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200'
+                                    : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200'
+                            }`}
+                            transition:fade={{ duration: 150 }}
+                        >
+                            <p class="text-sm">{testResult.message}</p>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
             {#if isAddingKey}
                 <div class="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                     <HeadingSmall
@@ -183,6 +254,44 @@
                     </Form>
                 </div>
             {/if}
+
+            <div class="space-y-4 border-t pt-6">
+                <div>
+                    <h3 class="text-sm font-medium">Test Mode</h3>
+                    <p class="text-xs text-neutral-600 dark:text-neutral-400">Use mock AI model for testing without API calls</p>
+                </div>
+
+                <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <label class="flex cursor-pointer items-center gap-3">
+                        <input
+                            type="checkbox"
+                            checked={testModeEnabled}
+                            class="h-4 w-4 rounded border-neutral-300"
+                            onchange={(e) => {
+                                const checked = (e.currentTarget as HTMLInputElement).checked;
+                                testModeEnabled = checked;
+                                router.patch(
+                                    route('profile.update'),
+                                    { use_test_mode: checked },
+                                    {
+                                        preserveScroll: true,
+                                        onError: () => {
+                                            // Revert on error
+                                            testModeEnabled = !checked;
+                                        }
+                                    },
+                                );
+                            }}
+                        />
+                        <div>
+                            <p class="text-sm font-medium">Enable Test Mode</p>
+                            <p class="text-xs text-neutral-500">
+                                Fake OpenAI model generates example content – no API costs, ideal for testing.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+            </div>
         </div>
     </SettingsLayout>
 </AppLayout>

@@ -161,4 +161,77 @@ describe('API Key Settings', function () {
             expect($response->getSession()->get('status'))->toBe('API key removed successfully.');
         });
     });
+
+    describe('PATCH /settings/profile (Test Mode)', function () {
+        it('can enable test mode', function () {
+            $this->user->update(['use_test_mode' => false]);
+
+            $response = $this->patch(route('profile.update'), [
+                'use_test_mode' => true,
+            ]);
+
+            $response->assertRedirect();
+
+            $this->user->refresh();
+            expect($this->user->use_test_mode)->toBeTrue();
+        });
+
+        it('can disable test mode', function () {
+            $this->user->update(['use_test_mode' => true]);
+
+            $response = $this->patch(route('profile.update'), [
+                'use_test_mode' => false,
+            ]);
+
+            $response->assertRedirect();
+
+            $this->user->refresh();
+            expect($this->user->use_test_mode)->toBeFalse();
+        });
+
+        it('preserves existing value when not provided in request', function () {
+            $this->user->update(['use_test_mode' => true]);
+
+            $response = $this->patch(route('profile.update'), [
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ]);
+
+            $response->assertRedirect();
+
+            $this->user->refresh();
+            expect($this->user->use_test_mode)->toBeTrue();
+        });
+
+        it('passes use_test_mode to the view', function () {
+            $this->user->update(['use_test_mode' => true]);
+
+            $response = $this->get(route('api-key.edit'));
+
+            $response->assertInertia(
+                fn($page) => $page
+                    ->where('useTestMode', true)
+            );
+        });
+
+        it('persists across page refreshes', function () {
+            $this->patch(route('profile.update'), ['use_test_mode' => true]);
+
+            $response = $this->get(route('api-key.edit'));
+
+            $response->assertInertia(
+                fn($page) => $page
+                    ->where('useTestMode', true)
+            );
+
+            $this->patch(route('profile.update'), ['use_test_mode' => false]);
+
+            $response = $this->get(route('api-key.edit'));
+
+            $response->assertInertia(
+                fn($page) => $page
+                    ->where('useTestMode', false)
+            );
+        });
+    });
 });
