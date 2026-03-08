@@ -44,11 +44,13 @@ class TextGenerationService
 
         $imageBase64 = base64_encode($imageBytes);
 
-        if (! $user->openai_api_key) {
+        $apiKey = $user->openai_api_key;
+
+        if ($user->use_test_mode || ! $apiKey) {
             return $this->loadMockResponse();
         }
 
-        $responsePayload = $this->callOpenAi($user->openai_api_key, $imageBase64, $promptText);
+        $responsePayload = $this->callOpenAi($apiKey, $imageBase64, $promptText);
         $outputText = $this->extractOutputText($responsePayload);
         $decoded = $this->decodeJson($outputText);
 
@@ -87,20 +89,23 @@ class TextGenerationService
             'input' => [
                 [
                     'role' => 'system',
-                    'content' => $this->systemPrompt,
+                    'content' => [
+                        [
+                            'type' => 'input_text',
+                            'text' => $this->systemPrompt,
+                        ],
+                    ],
                 ],
                 [
                     'role' => 'user',
                     'content' => [
                         [
-                            'type' => 'text',
+                            'type' => 'input_text',
                             'text' => $this->buildUserInstruction($promptText),
                         ],
                         [
-                            'type' => 'image_url',
-                            'image_url' => [
-                                'url' => "data:image/jpeg;base64,{$imageBase64}",
-                            ],
+                            'type' => 'input_image',
+                            'image_url' => "data:image/jpeg;base64,{$imageBase64}",
                         ],
                     ],
                 ],
