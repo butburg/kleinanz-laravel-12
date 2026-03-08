@@ -16,7 +16,7 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
-    Route::resource('ads', AdController::class)->except(['show']);
+    Route::resource('ads', AdController::class)->except(['show', 'create']);
     Route::patch('ads/{ad}/status', [AdController::class, 'updateStatus'])->name('ads.status.update');
     Route::post('ads/{ad}/generate', [AdController::class, 'generate'])->name('ads.generate');
     Route::post('ads/{ad}/images', [AdController::class, 'storeImage'])->name('ads.images.store');

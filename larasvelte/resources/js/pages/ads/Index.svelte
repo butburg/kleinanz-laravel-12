@@ -1,7 +1,9 @@
 <script lang="ts">
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { Button } from '@/components/ui/button';
-    import { Form, Link } from '@inertiajs/svelte';
+    import { Input } from '@/components/ui/input';
+    import { Label } from '@/components/ui/label';
+    import { Form, Link, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
 
     type Ad = {
@@ -33,6 +35,17 @@
     interface Props {
         ads: PaginatedAds;
         statusOptions: string[];
+        options?: {
+            conditions: string[];
+            shipping: string[];
+            statuses: string[];
+            limits: {
+                title: number;
+                description: number;
+                images: number;
+                prompt: number;
+            };
+        };
         flash?: {
             success?: string | null;
             error?: string | null;
@@ -46,8 +59,55 @@
         },
     ];
 
-    let { ads, statusOptions, flash }: Props = $props();
+    let { ads, statusOptions, options, flash }: Props = $props();
     let copyFeedback = $state<string | null>(null);
+
+    // Create ad state
+    let selectedImages = $state<FileList | null>(null);
+    let selectedImageNames = $state<string[]>([]);
+    let promptValue = $state('');
+    let isSubmitting = $state(false);
+    let createExpanded = $state(false);
+
+    // Derived state
+    let imageCount = $derived(selectedImages?.length ?? 0);
+    let hasImages = $derived(imageCount > 0);
+    let canGenerate = $derived(hasImages && !isSubmitting);
+
+    function onImageSelection(event: Event): void {
+        const input = event.currentTarget as HTMLInputElement;
+        selectedImages = input.files;
+        selectedImageNames = Array.from(input.files ?? []).map(f => f.name);
+    }
+
+    function submitForGenerate(): void {
+        if (!hasImages) return;
+
+        isSubmitting = true;
+
+        const formData = new FormData();
+        Array.from(selectedImages!).forEach(file => formData.append('images[]', file));
+        formData.append('title', '');
+        formData.append('description', '');
+        formData.append('prompt_text', promptValue);
+        formData.append('price', '0');
+        formData.append('condition', options?.conditions[0] || 'Gut');
+        formData.append('shipping', options?.shipping[0] || 'klein');
+        formData.append('status', options?.statuses[0] || 'Entwurf');
+        formData.append('_generate', 'true');
+
+        router.post(route('ads.store'), formData, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Reset form
+                selectedImages = null;
+                selectedImageNames = [];
+                promptValue = '';
+                createExpanded = false;
+            },
+            onFinish: () => isSubmitting = false,
+        });
+    }
 
     function statusBadgeClasses(statusColor: Ad['status_color']): string {
         switch (statusColor) {
@@ -107,12 +167,69 @@
             </div>
         {/if}
 
-        <div class="flex items-center justify-between gap-3">
-            <h1 class="text-2xl font-semibold">My Ads</h1>
-            <Link href={route('ads.create')}>
-                <Button>Create Ad</Button>
-            </Link>
-        </div>
+        <!-- Create Ad Expandable Card -->
+        <details bind:open={createExpanded} class="rounded-md border bg-card shadow-sm">
+            <summary class="cursor-pointer px-4 py-3 font-medium hover:bg-muted/50">
+                Create Ad
+            </summary>
+            <div class="space-y-4 border-t px-4 py-4">
+                <!-- Upload Images Section -->
+                <div class="space-y-2">
+                    <Label for="create-images">Upload Images</Label>
+                    <label
+                        for="create-images"
+                        class="block cursor-pointer rounded-md border-2 border-dashed p-4 text-center text-sm text-muted-foreground transition hover:border-primary hover:text-foreground"
+                    >
+                        Click to upload images
+                    </label>
+                    <Input
+                        id="create-images"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        class="hidden"
+                        onchange={onImageSelection}
+                    />
+                    <div class="text-xs text-muted-foreground">
+                        {imageCount} {#if options?.limits.images}/ {options.limits.images}{/if} selected
+                    </div>
+                    {#if imageCount > 0}
+                        <div class="max-h-24 space-y-1 overflow-auto rounded-md border p-2 text-xs">
+                            {#each Array.from(selectedImages || []) as file (file.name)}
+                                <div>{file.name}</div>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Prompt Field -->
+                <div class="space-y-2">
+                    <Label for="create-prompt">Prompt (optional)</Label>
+                    <textarea
+                        id="create-prompt"
+                        bind:value={promptValue}
+                        class="w-full rounded-md border p-2"
+                        rows="3"
+                        placeholder="Optional instructions for AI generation..."
+                        maxlength={options?.limits.prompt || 1000}
+                    ></textarea>
+                    <div class="text-xs text-muted-foreground">
+                        {promptValue.length} / {options?.limits.prompt || 1000}
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <Button
+                    type="button"
+                    onclick={submitForGenerate}
+                    disabled={!canGenerate}
+                >
+                    Generate Ad
+                </Button>
+            </div>
+        </details>
+
+        <h1 class="text-2xl font-semibold">My Ads</h1>
 
         {#if ads.data.length === 0}
             <p class="text-muted-foreground">No ads yet.</p>

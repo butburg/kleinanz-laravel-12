@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreAdImageRequest;
 use App\Http\Requests\StoreAdRequest;
 use App\Http\Requests\UpdateAdRequest;
+use App\Http\Requests\PartialUpdateAdRequest;
 use App\Http\Requests\UpdateAdStatusRequest;
 use App\Http\Requests\GenerateAdRequest;
 use App\Models\Ad;
@@ -220,19 +221,13 @@ class AdController extends Controller
         return Inertia::render('ads/Index', [
             'ads' => $ads,
             'statusOptions' => config('ads.status.options'),
-        ]);
-    }
-
-    public function create(): Response
-    {
-        return Inertia::render('ads/Create', [
             'options' => $this->formOptions(),
         ]);
     }
 
     public function store(StoreAdRequest $request): RedirectResponse
     {
-        DB::transaction(function () use ($request): void {
+        $ad = DB::transaction(function () use ($request) {
             $payload = [
                 ...$request->safe()->except(['images']),
                 'status' => $request->validated('status') ?? config('ads.status.default'),
@@ -247,7 +242,14 @@ class AdController extends Controller
             /** @var list<UploadedFile> $files */
             $files = $request->file('images', []);
             $this->appendImages($ad, $files);
+
+            return $ad;
         });
+
+        // If _generate flag is set, redirect to edit page instead of index
+        if ($request->input('_generate')) {
+            return to_route('ads.edit', $ad)->with('success', 'Ad created and generated content. Make sure to check and edit.');
+        }
 
         return to_route('ads.index')->with('success', 'Ad created successfully.');
     }
@@ -269,7 +271,10 @@ class AdController extends Controller
         ]);
     }
 
-    public function update(UpdateAdRequest $request, Ad $ad): RedirectResponse
+    /**
+     * Update the specified ad. Supports partial updates (auto-save) and full updates.
+     */
+    public function update(PartialUpdateAdRequest $request, Ad $ad): RedirectResponse
     {
         $this->authorize('update', $ad);
         $payload = $request->validated();
@@ -280,7 +285,10 @@ class AdController extends Controller
 
         $ad->update($payload);
 
-        return to_route('ads.index')->with('success', 'Ad updated successfully.');
+        // Always return back to maintain edit state (Inertia will merge the updated data)
+        return back()->with([
+            'success' => 'Ad updated successfully.',
+        ]);
     }
 
     public function generate(GenerateAdRequest $request, Ad $ad, TextGenerationService $generator): RedirectResponse
