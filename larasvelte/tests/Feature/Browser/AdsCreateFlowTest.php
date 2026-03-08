@@ -2,21 +2,30 @@
 
 use App\Models\User;
 
-it('allows an authenticated user to create an ad in browser flow', function (): void {
+it('allows an authenticated user to create an ad via inline form on index page', function (): void {
     $user = User::factory()->create();
     $this->actingAs($user);
 
-    $page = visit('/ads/create');
+    $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');
 
-    $page->assertPathIs('/ads/create')
+    if (!file_exists($imagePath)) {
+        $this->markTestSkipped('Test image not found.');
+    }
+
+    $page = visit('/ads');
+
+    // Expand the Create Ad card
+    $page->assertPathIs('/ads')
         ->assertSee('Create Ad')
-        ->fill('title', 'Browser Created Ad')
-        ->fill('description', str_repeat('Browser description text ', 3))
-        ->fill('price', '99')
-        ->select('condition', 'Gut')
-        ->select('shipping', 'mittel')
-        ->select('status', 'Entwurf')
-        ->click('Save Ad')
+        ->click('Create Ad') // Click the details/summary to expand
+        ->pause(300)
+        ->assertSee('Upload Images')
+        ->assertSee('Prompt (optional)')
+        ->attach('input[id="create-images"]', $imagePath)
+        ->pause(500)
+        ->fill('textarea[id="create-prompt"]', 'A nice item')
+        ->click('Generate Ad')
+        ->pause(2000)
         ->assertPathIs('/ads')
-        ->assertSee('Browser Created Ad');
+        ->assertSee('Ad created successfully');
 });

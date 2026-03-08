@@ -6,7 +6,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 it('redirects guests from ads pages', function (): void {
     $this->get(route('ads.index'))->assertRedirect(route('login'));
-    $this->get(route('ads.create'))->assertRedirect(route('login'));
 });
 
 it('lets authenticated users create an ad', function (): void {
@@ -38,24 +37,20 @@ it('renders dedicated ads pages for authenticated users', function (): void {
     $this->actingAs($user)
         ->get(route('ads.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('ads/Index')
-            ->has('ads.data', 1)
-        );
-
-    $this->actingAs($user)
-        ->get(route('ads.create'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('ads/Create')
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Index')
+                ->has('ads.data', 1)
+                ->has('options') // Index page now includes options for inline create
         );
 
     $this->actingAs($user)
         ->get(route('ads.edit', $ad))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('ads/Edit')
-            ->where('ad.id', $ad->id)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Edit')
+                ->where('ad.id', $ad->id)
         );
 });
 
@@ -69,7 +64,7 @@ it('lists only ads that belong to the authenticated user', function (): void {
     $this->actingAs($user)
         ->get(route('ads.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('ads.data', 1));
+        ->assertInertia(fn(Assert $page) => $page->has('ads.data', 1));
 });
 
 it('paginates ads list for authenticated users', function (): void {
@@ -79,20 +74,22 @@ it('paginates ads list for authenticated users', function (): void {
     $this->actingAs($user)
         ->get(route('ads.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('ads/Index')
-            ->has('ads.data', 12)
-            ->where('ads.current_page', 1)
-            ->where('ads.last_page', 2)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Index')
+                ->has('ads.data', 12)
+                ->where('ads.current_page', 1)
+                ->where('ads.last_page', 2)
         );
 
     $this->actingAs($user)
         ->get(route('ads.index', ['page' => 2]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('ads/Index')
-            ->has('ads.data', 1)
-            ->where('ads.current_page', 2)
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Index')
+                ->has('ads.data', 1)
+                ->where('ads.current_page', 2)
         );
 });
 
@@ -102,16 +99,18 @@ it('lets owners update and delete their ad', function (): void {
         'title' => 'Old title',
     ]);
 
-    $updateResponse = $this->actingAs($user)->patch(route('ads.update', $ad), [
-        'title' => 'Updated title',
-        'description' => str_repeat('Updated description. ', 4),
-        'price' => 55,
-        'condition' => 'Sehr gut',
-        'shipping' => 'mittel',
-        'status' => 'Online',
-    ]);
+    $updateResponse = $this->actingAs($user)
+        ->from(route('ads.edit', $ad)) // Set referrer so back() works correctly
+        ->patch(route('ads.update', $ad), [
+            'title' => 'Updated title',
+            'description' => str_repeat('Updated description. ', 4),
+            'price' => 55,
+            'condition' => 'Sehr gut',
+            'shipping' => 'mittel',
+            'status' => 'Online',
+        ]);
 
-    $updateResponse->assertRedirect(route('ads.index', absolute: false));
+    $updateResponse->assertRedirect(route('ads.edit', $ad)); // back() redirects to edit page
     $updateResponse->assertSessionHas('success', 'Ad updated successfully.');
     $this->assertDatabaseHas('ads', [
         'id' => $ad->id,
@@ -170,14 +169,16 @@ it('tracks last_online_at when status transitions from non-online to Online', fu
         'last_online_at' => null,
     ]);
 
-    $this->actingAs($user)->patch(route('ads.update', $ad), [
-        'title' => $ad->title,
-        'description' => $ad->description,
-        'price' => $ad->price,
-        'condition' => $ad->condition,
-        'shipping' => $ad->shipping,
-        'status' => 'Online',
-    ])->assertRedirect(route('ads.index', absolute: false));
+    $this->actingAs($user)
+        ->from(route('ads.edit', $ad))
+        ->patch(route('ads.update', $ad), [
+            'title' => $ad->title,
+            'description' => $ad->description,
+            'price' => $ad->price,
+            'condition' => $ad->condition,
+            'shipping' => $ad->shipping,
+            'status' => 'Online',
+        ])->assertRedirect(route('ads.edit', $ad));
 
     expect($ad->fresh()?->last_online_at)->not->toBeNull();
 });
@@ -190,14 +191,16 @@ it('does not change last_online_at when ad remains Online', function (): void {
     ]);
     $initialLastOnlineAt = $ad->last_online_at;
 
-    $this->actingAs($user)->patch(route('ads.update', $ad), [
-        'title' => 'Updated while online',
-        'description' => $ad->description,
-        'price' => $ad->price + 1,
-        'condition' => $ad->condition,
-        'shipping' => $ad->shipping,
-        'status' => 'Online',
-    ])->assertRedirect(route('ads.index', absolute: false));
+    $this->actingAs($user)
+        ->from(route('ads.edit', $ad))
+        ->patch(route('ads.update', $ad), [
+            'title' => 'Updated while online',
+            'description' => $ad->description,
+            'price' => $ad->price + 1,
+            'condition' => $ad->condition,
+            'shipping' => $ad->shipping,
+            'status' => 'Online',
+        ])->assertRedirect(route('ads.edit', $ad));
 
     expect($ad->fresh()?->last_online_at?->toDateTimeString())->toBe($initialLastOnlineAt?->toDateTimeString());
 });

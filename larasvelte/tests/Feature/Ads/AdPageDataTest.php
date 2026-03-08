@@ -7,15 +7,15 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('provides select options to the create ad page', function (): void {
+it('provides select options to the index page for inline ad creation', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('ads.create'))
+        ->get(route('ads.index'))
         ->assertOk()
         ->assertInertia(
             fn(Assert $page) => $page
-                ->component('ads/Create')
+                ->component('ads/Index')
                 ->where('options.conditions', config('ads.validation.conditions'))
                 ->where('options.shipping', config('ads.validation.shipping_options'))
                 ->where('options.statuses', config('ads.status.options'))
