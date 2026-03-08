@@ -4,6 +4,12 @@ AI-powered classified ads generator built with Laravel 12, Svelte 5, and Tailwin
 
 ## Quick Start
 
+**Always** make sure:
+
+```bash
+cd larasvelte
+```
+
 ### Prerequisites
 - PHP 8.3+
 - Node.js 20+
@@ -32,7 +38,7 @@ php artisan migrate:fresh --seed
 
 ### Running Locally
 
-You need **two terminal tabs**:
+You need **two terminal tabs** (`cd larasvelte`):
 
 **Terminal 1 - Laravel Server:**
 ```bash
