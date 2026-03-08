@@ -7,6 +7,7 @@ use App\Http\Requests\StoreAdRequest;
 use App\Http\Requests\PartialUpdateAdRequest;
 use App\Http\Requests\UpdateAdStatusRequest;
 use App\Http\Requests\GenerateAdRequest;
+use App\Jobs\AutoCropImage;
 use App\Models\Ad;
 use App\Models\AdImage;
 use App\Services\TextGenerationException;
@@ -57,7 +58,14 @@ class AdController extends Controller
     private function listThumbnailUrl(Ad $ad): ?string
     {
         $titleImage = $ad->images->firstWhere('is_title', true) ?? $ad->images->first();
-        $thumbPath = $titleImage?->cropped_thumb_path ?? $titleImage?->large_thumb_path;
+        if (! $titleImage) {
+            return null;
+        }
+
+        $canUseCroppedThumb = $titleImage->use_cropped
+            && $titleImage->cropped_thumb_path
+            && Storage::disk('public')->exists($titleImage->cropped_thumb_path);
+        $thumbPath = $canUseCroppedThumb ? $titleImage->cropped_thumb_path : $titleImage->large_thumb_path;
 
         return $thumbPath ? $this->encodeStorageUrl($thumbPath) : null;
     }
@@ -112,7 +120,12 @@ class AdController extends Controller
 
     private function imagePayload(AdImage $image): array
     {
-        $thumbPath = $image->cropped_thumb_path ?? $image->large_thumb_path;
+        $croppedThumbExists = $image->cropped_thumb_path
+            && Storage::disk('public')->exists($image->cropped_thumb_path);
+        $croppedExists = $image->cropped_path
+            && Storage::disk('public')->exists($image->cropped_path);
+        $usingCropped = $image->use_cropped && $croppedExists;
+        $thumbPath = ($image->use_cropped && $croppedThumbExists) ? $image->cropped_thumb_path : $image->large_thumb_path;
 
         return [
             'id' => $image->id,
@@ -121,10 +134,17 @@ class AdController extends Controller
             'variants' => [
                 'large' => $this->encodeStorageUrl($image->large_path),
                 'large_thumb' => $this->encodeStorageUrl($image->large_thumb_path),
-                'cropped' => $image->cropped_path ? $this->encodeStorageUrl($image->cropped_path) : null,
-                'cropped_thumb' => $image->cropped_thumb_path ? $this->encodeStorageUrl($image->cropped_thumb_path) : null,
+                'cropped' => $croppedExists ? $this->encodeStorageUrl($image->cropped_path) : null,
+                'cropped_thumb' => $croppedThumbExists ? $this->encodeStorageUrl($image->cropped_thumb_path) : null,
             ],
             'is_title' => $image->is_title,
+            'is_cropped' => $croppedExists,
+            'use_cropped' => $usingCropped,
+            'crop_metadata' => $image->metadata ? [
+                'original_size' => $image->metadata['original_size'] ?? null,
+                'cropped_size' => $image->metadata['cropped_size'] ?? null,
+                'cropped_at' => $image->metadata['cropped_at'] ?? null,
+            ] : null,
         ];
     }
 
@@ -183,8 +203,14 @@ class AdController extends Controller
             $createdImage = $ad->images()->create([
                 ...$variants,
                 'original_name' => $file->getClientOriginalName(),
+                'use_cropped' => true,
                 'is_title' => false,
             ]);
+
+            // Dispatch async job to perform auto-crop
+            if (config('ads.auto_crop.enabled', true)) {
+                AutoCropImage::dispatch($createdImage);
+            }
 
             $createdImageIds[] = $createdImage->id;
         }
@@ -216,7 +242,7 @@ class AdController extends Controller
     {
         $ads = Ad::query()
             ->whereBelongsTo($request->user())
-            ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,is_title'])
+            ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,use_cropped,is_title'])
             ->latest()
             ->paginate(12)
             ->withQueryString()
@@ -458,6 +484,35 @@ class AdController extends Controller
         return to_route('ads.edit', $ad)->with('success', 'Title image updated successfully.');
     }
 
+    public function updateImageCropPreference(Request $request, Ad $ad, AdImage $adImage): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+        $this->ensureImageBelongsToAd($ad, $adImage);
+
+        $validated = $request->validate([
+            'use_cropped' => ['required', 'boolean'],
+        ]);
+
+        $useCropped = (bool) $validated['use_cropped'];
+
+        if ($useCropped) {
+            $croppedAvailable = $adImage->cropped_path
+                && Storage::disk('public')->exists($adImage->cropped_path)
+                && $adImage->cropped_thumb_path
+                && Storage::disk('public')->exists($adImage->cropped_thumb_path);
+
+            if (! $croppedAvailable) {
+                return to_route('ads.edit', $ad)->with('error', 'Cropped version is not available yet for this image.');
+            }
+        }
+
+        $adImage->update([
+            'use_cropped' => $useCropped,
+        ]);
+
+        return to_route('ads.edit', $ad)->with('success', 'Image display preference updated.');
+    }
+
     public function destroyImage(Ad $ad, AdImage $adImage): RedirectResponse
     {
         $this->authorize('update', $ad);
@@ -487,8 +542,12 @@ class AdController extends Controller
         $this->authorize('update', $ad);
         $this->ensureImageBelongsToAd($ad, $adImage);
 
-        $downloadPath = $adImage->cropped_path ?? $adImage->large_path;
-        abort_if($downloadPath === null, 404);
+        $useCropped = $adImage->use_cropped
+            && $adImage->cropped_path
+            && Storage::disk('public')->exists($adImage->cropped_path);
+
+        $downloadPath = $useCropped ? $adImage->cropped_path : $adImage->large_path;
+        abort_if($downloadPath === null || ! Storage::disk('public')->exists($downloadPath), 404);
 
         return Storage::disk('public')->download($downloadPath, $adImage->original_name);
     }

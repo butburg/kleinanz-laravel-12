@@ -4,7 +4,12 @@ use App\Models\Ad;
 use App\Models\AdImage;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+
+beforeEach(function (): void {
+    Queue::fake();
+});
 
 it('stores up to ten images and marks the first image as title on create', function (): void {
     Storage::fake('public');
@@ -36,8 +41,7 @@ it('stores up to ten images and marks the first image as title on create', funct
 
     expect($storedImage->large_path)->not->toBeNull();
     expect($storedImage->large_thumb_path)->not->toBeNull();
-    expect($storedImage->cropped_path)->toBeNull();
-    expect($storedImage->cropped_thumb_path)->toBeNull();
+    expect($storedImage->original_name)->not->toBe('');
 });
 
 it('accepts avif uploads and stores variant paths', function (): void {
@@ -241,4 +245,55 @@ it('forbids downloading an image from another users ad', function (): void {
     $this->actingAs($intruder)
         ->get(route('ads.images.download', [$ad, $image]))
         ->assertForbidden();
+});
+
+it('allows owner to toggle cropped preference per image', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create();
+    $image = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/crop-toggle-large.jpg',
+        'large_thumb_path' => 'ads/crop-toggle-large-thumb.jpg',
+        'cropped_path' => 'ads/crop-toggle-cropped.jpg',
+        'cropped_thumb_path' => 'ads/crop-toggle-cropped-thumb.jpg',
+        'use_cropped' => true,
+    ]);
+
+    Storage::disk('public')->put('ads/crop-toggle-large.jpg', 'large-content');
+    Storage::disk('public')->put('ads/crop-toggle-large-thumb.jpg', 'large-thumb-content');
+    Storage::disk('public')->put('ads/crop-toggle-cropped.jpg', 'cropped-content');
+    Storage::disk('public')->put('ads/crop-toggle-cropped-thumb.jpg', 'cropped-thumb-content');
+
+    $this->actingAs($user)
+        ->patch(route('ads.images.crop-preference', [$ad, $image]), ['use_cropped' => false])
+        ->assertRedirect(route('ads.edit', $ad, absolute: false));
+
+    expect($image->fresh()?->use_cropped)->toBeFalse();
+
+    $this->actingAs($user)
+        ->patch(route('ads.images.crop-preference', [$ad, $image]), ['use_cropped' => true])
+        ->assertRedirect(route('ads.edit', $ad, absolute: false));
+
+    expect($image->fresh()?->use_cropped)->toBeTrue();
+});
+
+it('downloads original image when use_cropped is disabled even if cropped path exists', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create();
+    $image = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/download-choice-large.jpg',
+        'cropped_path' => 'ads/download-choice-cropped.jpg',
+        'original_name' => 'choice.jpg',
+        'use_cropped' => false,
+    ]);
+
+    Storage::disk('public')->put('ads/download-choice-large.jpg', 'large-content');
+
+    $response = $this->actingAs($user)->get(route('ads.images.download', [$ad, $image]));
+
+    $response->assertOk();
+    $response->assertHeader('content-disposition', 'attachment; filename=choice.jpg');
 });

@@ -23,6 +23,19 @@
         url: string;
         is_title: boolean;
         position: number;
+        use_cropped?: boolean;
+        variants?: {
+            large: string;
+            large_thumb: string;
+            cropped: string | null;
+            cropped_thumb: string | null;
+        };
+        is_cropped?: boolean;
+        crop_metadata?: {
+            original_size?: [number, number] | null;
+            cropped_size?: [number, number] | null;
+            cropped_at?: string | null;
+        } | null;
     };
 
     type Ad = {
@@ -191,6 +204,12 @@
     function getFieldError(fieldName: string): string {
         return fieldErrors[fieldName] || '';
     }
+
+    function confirmImageDelete(event: SubmitEvent): void {
+        if (!window.confirm('Please confirm that you want to delete this image.')) {
+            event.preventDefault();
+        }
+    }
 </script>
 
 <svelte:head>
@@ -241,6 +260,27 @@
                             <div class="space-y-2 rounded-md border p-3">
                                 <img src={image.url} alt={image.original_name} class="h-40 w-full rounded-md object-cover" />
                                 <p class="text-sm">{image.original_name}</p>
+                                {#if image.is_cropped}
+                                    <p class="text-xs font-medium text-green-700">Clothes detected and cropped</p>
+                                    {#if image.crop_metadata?.cropped_size}
+                                        <p class="text-xs text-muted-foreground">
+                                            Cropped size: {image.crop_metadata.cropped_size[0]}x{image.crop_metadata.cropped_size[1]}
+                                        </p>
+                                    {/if}
+
+                                    <p class="text-xs text-muted-foreground">
+                                        Currently using: {image.use_cropped ? 'Cropped' : 'Original'}
+                                    </p>
+
+                                    <Form method="patch" action={route('ads.images.crop-preference', [ad.id, image.id])}>
+                                        <input type="hidden" name="use_cropped" value={image.use_cropped ? '0' : '1'} />
+                                        <Button type="submit" size="sm" variant="outline">
+                                            {image.use_cropped ? 'Use original version' : 'Use cropped version'}
+                                        </Button>
+                                    </Form>
+                                {:else}
+                                    <p class="text-xs text-amber-700">No crop available yet (processing or no clothing detected)</p>
+                                {/if}
                                 {#if image.is_title}
                                     <p class="text-sm font-medium text-green-700">Title image</p>
                                 {:else}
@@ -248,7 +288,7 @@
                                         <Button type="submit" size="sm">Set as title</Button>
                                     </Form>
                                 {/if}
-                                <Form method="delete" action={route('ads.images.destroy', [ad.id, image.id])}>
+                                <Form method="delete" action={route('ads.images.destroy', [ad.id, image.id])} onsubmit={confirmImageDelete}>
                                     <Button type="submit" size="sm" variant="outline">Delete image</Button>
                                 </Form>
                             </div>
@@ -457,7 +497,7 @@
                 <Dialog open={showDeleteConfirm} onOpenChange={(open) => (showDeleteConfirm = open)}>
                         <DialogContent>
                             <DialogHeader class="space-y-2">
-                                <DialogTitle>Delete this ad?</DialogTitle>
+                                <DialogTitle>Please confirm that you want to delete this ad.</DialogTitle>
                                 <DialogDescription>
                                     This action cannot be undone. The ad and all its images will be permanently deleted.
                                 </DialogDescription>
