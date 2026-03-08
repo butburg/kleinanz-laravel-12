@@ -37,4 +37,14 @@ return [
         'max_tokens' => 1000,
         'timeout' => 30,
     ],
+
+    'auto_crop' => [
+        'enabled' => true,
+        'method' => 'python_subprocess',
+        'detection_threshold' => 0.7,
+        'closeup_threshold' => 0.80, // Crop only if main clothing item fills less than x area of the image
+        'margin_percent' => 2,
+        'script_path' => base_path('scripts/auto_crop.py'),
+        'timeout' => 60,
+    ],
 ];

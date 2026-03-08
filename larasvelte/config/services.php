@@ -40,4 +40,12 @@ return [
         'url' => env('OPENAI_API_URL', 'https://api.openai.com/v1'),
     ],
 
+    'onnx' => [
+        'model_path' => env('AUTO_CROP_MODEL_PATH', storage_path('models/yolov8n-fashionpedia-1.onnx')),
+    ],
+
+    'python' => [
+        'path' => env('PYTHON_PATH', base_path('../.venv/bin/python')),
+    ],
+
 ];

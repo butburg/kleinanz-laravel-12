@@ -20,8 +20,10 @@ class AdImage extends Model
         'large_thumb_path',
         'cropped_path',
         'cropped_thumb_path',
+        'use_cropped',
         'original_name',
         'is_title',
+        'metadata',
     ];
 
     /**
@@ -31,6 +33,8 @@ class AdImage extends Model
     {
         return [
             'is_title' => 'boolean',
+            'use_cropped' => 'boolean',
+            'metadata' => 'array',
         ];
     }
 

@@ -23,6 +23,7 @@ class AdImageFactory extends Factory
             'large_thumb_path' => 'ads/large_thumb/' . $this->faker->uuid() . '.jpg',
             'cropped_path' => null,
             'cropped_thumb_path' => null,
+            'use_cropped' => true,
             'original_name' => $this->faker->word() . '.jpg',
             'is_title' => false,
         ];
