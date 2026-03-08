@@ -44,10 +44,12 @@
 - [ ] Processed image at max size
 - [x] Thumbnail generation
 - [ ] Progressive JPEG encoding
-- [ ] Auto-crop clothing detection
-- [ ] Close-up detection skip crop
-- [ ] Crop with configurable margin
-- [ ] Crop failure fallback to original
+- [x] Auto-crop clothing detection
+- [x] Close-up detection skip crop
+- [x] Crop with configurable margin
+- [x] Crop failure fallback to original
+- [x] Async auto-crop job dispatch on upload
+- [x] Crop metadata persisted per image
 
 ## Image Management in Form
 - [x] Image preview grid
@@ -55,10 +57,11 @@
 - [x] Set/change title image of ad by click
 - [x] Delete individual images
 - [x] Add more images during edit
-- [ ] Store original and cropped variants
-- [ ] Let user choose uncropped version if image was cropped
+- [x] Store original and cropped variants
+- [x] Let user choose uncropped version if image was cropped
 - [x] Thumbnail-only rendering in form and lists
 - [ ] Download high-res selected variants
+- [x] Delete image confirmation prompt
 
 ## Ad List and Edit
 - [x] List saved ads
@@ -68,6 +71,7 @@
 - [x] copy description action from ads overview list (without need to open edit)
 - [x] Gallery thumbnail
 - [x] Per-image download from list
+- [x] Per-image download respects crop preference
 - [x] Delete ad with confirmation dialog
 - [x] Flash success/error messages
 - [ ] Lazy loading behavior
@@ -83,7 +87,7 @@
 
 ## Text Generation
 - [ ] OpenAI model integration
-- [ ] Title image input to model
+- [ ] Title-image input to model
 - [ ] User prompt inclusion
 - [ ] Structured JSON output parsing
 - [ ] Mock mode for generation
