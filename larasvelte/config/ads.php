@@ -13,7 +13,17 @@ return [
     'image' => [
         'max_files' => 10,
         'max_file_kb' => 5120,
+        'max_size' => 1000,
+        'thumbnail_width' => 220,
+        'thumbnail_max_height' => 880,
+        'jpeg_quality' => 85,
+        'progressive' => true,
         'supported_formats' => ['jpg', 'jpeg', 'png', 'webp', 'avif'],
+        'client' => [
+            'max_dimension' => 1000,
+            'quality' => 90,
+            'output_mime' => 'image/jpeg',
+        ],
     ],
 
     'status' => [

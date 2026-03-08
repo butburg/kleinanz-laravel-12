@@ -27,5 +27,5 @@ it('allows an authenticated user to create an ad via inline form on index page',
         ->click('Generate Ad')
         ->pause(2000)
         ->assertPathIs('/ads')
-        ->assertSee('Ad created successfully');
+        ->assertSee('Ad generated and saved successfully');
 });

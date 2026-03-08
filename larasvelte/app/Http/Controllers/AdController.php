@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAdImageRequest;
 use App\Http\Requests\StoreAdRequest;
-use App\Http\Requests\UpdateAdRequest;
 use App\Http\Requests\PartialUpdateAdRequest;
 use App\Http\Requests\UpdateAdStatusRequest;
 use App\Http\Requests\GenerateAdRequest;
@@ -157,29 +156,47 @@ class AdController extends Controller
                 'images' => config('ads.image.max_files'),
                 'prompt' => config('ads.validation.prompt_max_length'),
             ],
+            'image' => [
+                'client' => [
+                    'max_dimension' => config('ads.image.client.max_dimension'),
+                    'quality' => config('ads.image.client.quality'),
+                    'output_mime' => config('ads.image.client.output_mime'),
+                ],
+            ],
         ];
     }
 
     /**
      * @param  list<UploadedFile>  $files
      */
-    private function appendImages(Ad $ad, array $files): void
+    private function appendImages(Ad $ad, array $files, ?int $titleImageIndex = null): void
     {
         if ($files === []) {
             return;
         }
 
+        $createdImageIds = [];
+
         foreach ($files as $file) {
             $variants = $this->storeImageVariants($ad, $file);
 
-            $ad->images()->create([
+            $createdImage = $ad->images()->create([
                 ...$variants,
                 'original_name' => $file->getClientOriginalName(),
                 'is_title' => false,
             ]);
+
+            $createdImageIds[] = $createdImage->id;
         }
 
         $hasTitle = $ad->images()->where('is_title', true)->exists();
+
+        if (! $hasTitle && $titleImageIndex !== null && array_key_exists($titleImageIndex, $createdImageIds)) {
+            $selectedId = $createdImageIds[$titleImageIndex];
+            $ad->images()->whereKey($selectedId)->update(['is_title' => true]);
+
+            return;
+        }
 
         if (! $hasTitle) {
             $newTitleImageId = $ad->images()->oldest()->value('id');
@@ -227,7 +244,13 @@ class AdController extends Controller
 
     public function store(StoreAdRequest $request): RedirectResponse
     {
-        $ad = DB::transaction(function () use ($request) {
+        if ($request->boolean('_generate')) {
+            return $this->storeAndGenerate($request);
+        }
+
+        $titleImageIndex = $request->validated('title_image_index');
+
+        $ad = DB::transaction(function () use ($request, $titleImageIndex) {
             $payload = [
                 ...$request->safe()->except(['images']),
                 'status' => $request->validated('status') ?? config('ads.status.default'),
@@ -241,17 +264,76 @@ class AdController extends Controller
 
             /** @var list<UploadedFile> $files */
             $files = $request->file('images', []);
-            $this->appendImages($ad, $files);
+            $this->appendImages($ad, $files, $titleImageIndex);
 
             return $ad;
         });
 
-        // If _generate flag is set, redirect to edit page instead of index
-        if ($request->input('_generate')) {
-            return to_route('ads.edit', $ad)->with('success', 'Ad created and generated content. Make sure to check and edit.');
+        return to_route('ads.index')->with('success', 'Ad created successfully.');
+    }
+
+    private function storeAndGenerate(StoreAdRequest $request): RedirectResponse
+    {
+        /** @var list<UploadedFile> $files */
+        $files = $request->file('images', []);
+
+        if ($files === []) {
+            return back()->withErrors(['images' => 'Please upload at least one image.']);
         }
 
-        return to_route('ads.index')->with('success', 'Ad created successfully.');
+        $status = $request->validated('status') ?? config('ads.status.default');
+        $conditions = (array) config('ads.validation.conditions');
+        $shippingOptions = (array) config('ads.validation.shipping_options');
+
+        $titleImageIndex = $request->validated('title_image_index');
+
+        $ad = DB::transaction(function () use ($request, $files, $status, $conditions, $shippingOptions, $titleImageIndex) {
+            $payload = [
+                'title' => 'Generating...',
+                'description' => 'Generating ad content...',
+                'price' => 0,
+                'condition' => (string) ($conditions[0] ?? 'Gut'),
+                'shipping' => (string) ($shippingOptions[0] ?? 'klein'),
+                'status' => $status,
+                'prompt_text' => $request->validated('prompt_text'),
+            ];
+
+            if ($payload['status'] === 'Online') {
+                $payload['last_online_at'] = now();
+            }
+
+            $ad = $request->user()->ads()->create($payload);
+            $this->appendImages($ad, $files, $titleImageIndex);
+
+            return $ad;
+        });
+
+        try {
+            /** @var TextGenerationService $generator */
+            $generator = app(TextGenerationService::class);
+            $generated = $generator->generateForAd(
+                $ad,
+                $request->user(),
+                $request->validated('prompt_text')
+            );
+        } catch (TextGenerationException $exception) {
+            $ad->delete();
+
+            return back()
+                ->withErrors(['generate' => $exception->getMessage()])
+                ->with('error', 'Text generation failed. Ad was not saved.');
+        }
+
+        $ad->update([
+            'title' => $generated['title'],
+            'description' => $generated['description'],
+            'price' => $generated['price'],
+            'condition' => $generated['condition'],
+            'shipping' => $generated['shipping'],
+            'prompt_text' => $request->validated('prompt_text'),
+        ]);
+
+        return to_route('ads.index')->with('success', 'Ad generated and saved successfully.');
     }
 
     public function edit(Ad $ad): Response

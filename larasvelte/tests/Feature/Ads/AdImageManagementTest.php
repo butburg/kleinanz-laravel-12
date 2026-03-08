@@ -106,6 +106,31 @@ it('uses the first uploaded image as title image when no title index is provided
     expect(AdImage::query()->where('ad_id', $ad->id)->where('is_title', true)->count())->toBe(1);
 });
 
+it('uses the selected title image index during quick generate create flow', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create(['openai_api_key' => null]);
+
+    $this->actingAs($user)->post(route('ads.store'), [
+        '_generate' => true,
+        'prompt_text' => 'A blue jacket',
+        'images' => [
+            UploadedFile::fake()->image('first.jpg'),
+            UploadedFile::fake()->image('second.jpg'),
+            UploadedFile::fake()->image('third.jpg'),
+        ],
+        'title_image_index' => 1,
+    ])->assertRedirect(route('ads.index', absolute: false));
+
+    $ad = Ad::query()->where('user_id', $user->id)->latest()->firstOrFail();
+    $images = AdImage::query()->where('ad_id', $ad->id)->oldest()->get();
+
+    expect($images)->toHaveCount(3);
+    expect($images[0]->is_title)->toBeFalse();
+    expect($images[1]->is_title)->toBeTrue();
+    expect($images[2]->is_title)->toBeFalse();
+});
+
 it('rejects unsupported image formats on create', function (): void {
     $user = User::factory()->create();
 

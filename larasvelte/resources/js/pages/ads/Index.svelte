@@ -45,10 +45,22 @@
                 images: number;
                 prompt: number;
             };
+            image?: {
+                client?: {
+                    max_dimension?: number;
+                    quality?: number;
+                    output_mime?: string;
+                };
+            };
         };
         flash?: {
             success?: string | null;
             error?: string | null;
+        };
+        errors?: {
+            images?: string;
+            generate?: string;
+            [key: string]: string | undefined;
         };
     }
 
@@ -59,25 +71,207 @@
         },
     ];
 
-    let { ads, statusOptions, options, flash }: Props = $props();
+    let { ads, statusOptions, options, flash, errors }: Props = $props();
     let copyFeedback = $state<string | null>(null);
 
     // Create ad state
-    let selectedImages = $state<FileList | null>(null);
-    let selectedImageNames = $state<string[]>([]);
+    type PendingImage = {
+        id: string;
+        file: File;
+        previewUrl: string;
+        originalName: string;
+        wasResized: boolean;
+    };
+
+    let pendingImages = $state<PendingImage[]>([]);
+    let selectedTitleIndex = $state(0);
     let promptValue = $state('');
     let isSubmitting = $state(false);
+    let isPreparingImages = $state(false);
     let createExpanded = $state(false);
 
     // Derived state
-    let imageCount = $derived(selectedImages?.length ?? 0);
+    let imageCount = $derived(pendingImages.length);
     let hasImages = $derived(imageCount > 0);
-    let canGenerate = $derived(hasImages && !isSubmitting);
+    let canGenerate = $derived(hasImages && !isSubmitting && !isPreparingImages);
 
-    function onImageSelection(event: Event): void {
+    function imageClientConfig() {
+        const maxDimension = options?.image?.client?.max_dimension ?? 1000;
+        const qualityPercent = options?.image?.client?.quality ?? 90;
+        const outputMime = options?.image?.client?.output_mime ?? 'image/jpeg';
+
+        return {
+            maxDimension,
+            quality: Math.max(0.1, Math.min(1, qualityPercent / 100)),
+            outputMime,
+        };
+    }
+
+    function nextFileName(originalName: string, outputMime: string): string {
+        const extensionMap: Record<string, string> = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/avif': 'avif',
+        };
+
+        const extension = extensionMap[outputMime] ?? 'jpg';
+        const dotIndex = originalName.lastIndexOf('.');
+        const baseName = dotIndex > 0 ? originalName.slice(0, dotIndex) : originalName;
+
+        return `${baseName}.${extension}`;
+    }
+
+    function loadImageDimensions(file: File): Promise<{ width: number; height: number; image: HTMLImageElement }> {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const image = new Image();
+
+            image.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve({ width: image.naturalWidth, height: image.naturalHeight, image });
+            };
+
+            image.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error(`Could not read image: ${file.name}`));
+            };
+
+            image.src = url;
+        });
+    }
+
+    async function resizeIfNeeded(file: File): Promise<{ file: File; wasResized: boolean }> {
+        const config = imageClientConfig();
+        const { width, height, image } = await loadImageDimensions(file);
+        const largest = Math.max(width, height);
+
+        if (largest <= config.maxDimension) {
+            return { file, wasResized: false };
+        }
+
+        const ratio = config.maxDimension / largest;
+        const targetWidth = Math.max(1, Math.round(width * ratio));
+        const targetHeight = Math.max(1, Math.round(height * ratio));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return { file, wasResized: false };
+        }
+
+        context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+        const blob = await new Promise<Blob | null>(resolve => {
+            canvas.toBlob(resolve, config.outputMime, config.quality);
+        });
+
+        if (!blob) {
+            return { file, wasResized: false };
+        }
+
+        return {
+            file: new File([blob], nextFileName(file.name, config.outputMime), {
+                type: config.outputMime,
+                lastModified: Date.now(),
+            }),
+            wasResized: true,
+        };
+    }
+
+    function normalizeTitleIndex(): void {
+        if (pendingImages.length === 0) {
+            selectedTitleIndex = 0;
+            return;
+        }
+
+        if (selectedTitleIndex >= pendingImages.length) {
+            selectedTitleIndex = pendingImages.length - 1;
+        }
+    }
+
+    function resetCreateState(): void {
+        pendingImages.forEach(image => URL.revokeObjectURL(image.previewUrl));
+        pendingImages = [];
+        selectedTitleIndex = 0;
+        promptValue = '';
+        createExpanded = false;
+    }
+
+    async function onImageSelection(event: Event): Promise<void> {
         const input = event.currentTarget as HTMLInputElement;
-        selectedImages = input.files;
-        selectedImageNames = Array.from(input.files ?? []).map(f => f.name);
+        const newFiles = Array.from(input.files ?? []);
+        input.value = '';
+
+        if (newFiles.length === 0) {
+            return;
+        }
+
+        const maxFiles = options?.limits.images ?? 10;
+        const remainingSlots = Math.max(0, maxFiles - pendingImages.length);
+
+        if (remainingSlots === 0) {
+            return;
+        }
+
+        const filesToProcess = newFiles.slice(0, remainingSlots);
+        isPreparingImages = true;
+
+        try {
+            const prepared = await Promise.all(
+                filesToProcess.map(async (file): Promise<PendingImage> => {
+                    const resized = await resizeIfNeeded(file);
+
+                    return {
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                        file: resized.file,
+                        previewUrl: URL.createObjectURL(resized.file),
+                        originalName: file.name,
+                        wasResized: resized.wasResized,
+                    };
+                })
+            );
+
+            pendingImages = [...pendingImages, ...prepared];
+            normalizeTitleIndex();
+        } finally {
+            isPreparingImages = false;
+        }
+    }
+
+    function removePendingImage(index: number): void {
+        const image = pendingImages[index];
+        if (!image) return;
+
+        URL.revokeObjectURL(image.previewUrl);
+        pendingImages = pendingImages.filter((_, currentIndex) => currentIndex !== index);
+
+        if (index < selectedTitleIndex) {
+            selectedTitleIndex -= 1;
+        } else if (index === selectedTitleIndex) {
+            selectedTitleIndex = 0;
+        }
+
+        normalizeTitleIndex();
+    }
+
+    function movePendingImage(index: number, direction: -1 | 1): void {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= pendingImages.length) return;
+
+        const next = [...pendingImages];
+        const [moved] = next.splice(index, 1);
+        next.splice(targetIndex, 0, moved);
+        pendingImages = next;
+
+        if (selectedTitleIndex === index) {
+            selectedTitleIndex = targetIndex;
+        } else if (selectedTitleIndex === targetIndex) {
+            selectedTitleIndex = index;
+        }
     }
 
     function submitForGenerate(): void {
@@ -86,24 +280,16 @@
         isSubmitting = true;
 
         const formData = new FormData();
-        Array.from(selectedImages!).forEach(file => formData.append('images[]', file));
-        formData.append('title', '');
-        formData.append('description', '');
+        pendingImages.forEach(image => formData.append('images[]', image.file));
         formData.append('prompt_text', promptValue);
-        formData.append('price', '0');
-        formData.append('condition', options?.conditions[0] || 'Gut');
-        formData.append('shipping', options?.shipping[0] || 'klein');
+        formData.append('title_image_index', String(selectedTitleIndex));
         formData.append('status', options?.statuses[0] || 'Entwurf');
         formData.append('_generate', 'true');
 
         router.post(route('ads.store'), formData, {
             preserveScroll: true,
             onSuccess: () => {
-                // Reset form
-                selectedImages = null;
-                selectedImageNames = [];
-                promptValue = '';
-                createExpanded = false;
+                resetCreateState();
             },
             onFinish: () => isSubmitting = false,
         });
@@ -193,14 +379,96 @@
                     <div class="text-xs text-muted-foreground">
                         {imageCount} {#if options?.limits.images}/ {options.limits.images}{/if} selected
                     </div>
+                    {#if isPreparingImages}
+                        <div class="text-xs text-muted-foreground">Optimizing images for upload...</div>
+                    {/if}
                     {#if imageCount > 0}
                         <div class="max-h-24 space-y-1 overflow-auto rounded-md border p-2 text-xs">
-                            {#each Array.from(selectedImages || []) as file (file.name)}
-                                <div>{file.name}</div>
+                            {#each pendingImages as image (image.id)}
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="truncate">{image.file.name}</span>
+                                    {#if image.wasResized}
+                                        <span class="text-[10px] text-muted-foreground">resized</span>
+                                    {/if}
+                                </div>
                             {/each}
                         </div>
                     {/if}
                 </div>
+
+                {#if imageCount > 0}
+                    <div class="space-y-2">
+                        <Label>Arrange images and choose title image</Label>
+                        <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            {#each pendingImages as image, index (image.id)}
+                                <div class={`rounded-md border p-1 ${selectedTitleIndex === index ? 'border-primary ring-2 ring-primary/40' : 'border-muted'}`}>
+                                    <img src={image.previewUrl} alt={image.file.name} class="h-24 w-full rounded object-cover" />
+                                    <div class="mt-1 truncate text-[11px]">{image.file.name}</div>
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={selectedTitleIndex === index ? 'default' : 'outline'}
+                                            class="h-7 px-2 text-[11px]"
+                                            onclick={() => {
+                                                selectedTitleIndex = index;
+                                            }}
+                                        >
+                                            Title
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            class="h-7 px-2 text-[11px]"
+                                            disabled={index === 0}
+                                            onclick={() => {
+                                                movePendingImage(index, -1);
+                                            }}
+                                        >
+                                            ↑
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            class="h-7 px-2 text-[11px]"
+                                            disabled={index === pendingImages.length - 1}
+                                            onclick={() => {
+                                                movePendingImage(index, 1);
+                                            }}
+                                        >
+                                            ↓
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="destructive"
+                                            class="h-7 px-2 text-[11px]"
+                                            onclick={() => {
+                                                removePendingImage(index);
+                                            }}
+                                        >
+                                            Remove
+                                        </Button>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+
+                {#if errors?.images}
+                    <div class="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        {errors.images}
+                    </div>
+                {/if}
+
+                {#if errors?.generate}
+                    <div class="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        {errors.generate}
+                    </div>
+                {/if}
 
                 <!-- Prompt Field -->
                 <div class="space-y-2">

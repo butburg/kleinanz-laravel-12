@@ -22,24 +22,57 @@ class StoreAdRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isGenerateFlow = $this->boolean('_generate');
+
+        $titleRules = ['string', 'max:' . config('ads.validation.title_max_length')];
+        $descriptionRules = ['string', 'max:' . config('ads.validation.description_max_length')];
+        $priceRules = ['integer', 'min:0'];
+        $conditionRules = [Rule::in(config('ads.validation.conditions'))];
+        $shippingRules = [Rule::in(config('ads.validation.shipping_options'))];
+
+        if ($isGenerateFlow) {
+            array_unshift($titleRules, 'nullable');
+            array_unshift($descriptionRules, 'nullable');
+            array_unshift($priceRules, 'nullable');
+            array_unshift($conditionRules, 'nullable');
+            array_unshift($shippingRules, 'nullable');
+        } else {
+            array_unshift($titleRules, 'required');
+            array_unshift($descriptionRules, 'required', 'min:' . config('ads.validation.description_min_length'));
+            array_unshift($priceRules, 'required');
+            array_unshift($conditionRules, 'required');
+            array_unshift($shippingRules, 'required');
+        }
+
         return [
-            'title' => ['required', 'string', 'max:' . config('ads.validation.title_max_length')],
-            'description' => [
-                'required',
-                'string',
-                'min:' . config('ads.validation.description_min_length'),
-                'max:' . config('ads.validation.description_max_length'),
-            ],
-            'price' => ['required', 'integer', 'min:0'],
-            'condition' => ['required', Rule::in(config('ads.validation.conditions'))],
-            'shipping' => ['required', Rule::in(config('ads.validation.shipping_options'))],
+            'title' => $titleRules,
+            'description' => $descriptionRules,
+            'price' => $priceRules,
+            'condition' => $conditionRules,
+            'shipping' => $shippingRules,
             'status' => ['nullable', Rule::in(config('ads.status.options'))],
             'prompt_text' => ['nullable', 'string', 'max:' . config('ads.validation.prompt_max_length')],
-            'images' => ['nullable', 'array', 'max:' . config('ads.image.max_files')],
+            'images' => [Rule::requiredIf($isGenerateFlow), 'array', 'max:' . config('ads.image.max_files')],
             'images.*' => [
                 'file',
                 'mimes:' . implode(',', config('ads.image.supported_formats')),
                 'max:' . config('ads.image.max_file_kb'),
+            ],
+            'title_image_index' => [
+                'nullable',
+                'integer',
+                'min:0',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    /** @var list<\Illuminate\Http\UploadedFile> $images */
+                    $images = $this->file('images', []);
+                    if (! array_key_exists((int) $value, $images)) {
+                        $fail('The selected title image is invalid.');
+                    }
+                },
             ],
         ];
     }
