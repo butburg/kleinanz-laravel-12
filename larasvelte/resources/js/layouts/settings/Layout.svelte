@@ -17,6 +17,10 @@
             href: '/settings/password',
         },
         {
+            title: 'API Key',
+            href: '/settings/api-key',
+        },
+        {
             title: 'Two-Factor',
             href: '/settings/two-factor',
         },
