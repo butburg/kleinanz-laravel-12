@@ -40,8 +40,12 @@ jobs:
         SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
       run: |
         rsync -r --delete-after --quiet \
+          --exclude '/.github/' \
           --exclude '/vendor/' \
           --exclude '/node_modules/' \
+          --exclude '/tests/' \
+          --exclude '/stubs/' \
+          --exclude '*.md' \
           --exclude '/storage/logs/' \
           --exclude '/storage/app/*' \
           --exclude '/bootstrap/cache/' \
@@ -51,15 +55,15 @@ jobs:
           --exclude '/public/hot' \
           $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
 
-    # Prepare .env: copy from repo, replace local values with production values
+    # Write .env directly from secret, then patch production-specific values
     - name: Prepare production .env
       env:
         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        ENV_VARIABLES: ${{ secrets.KLEINANZ_ENV_VARIABLES }}
       run: |
-        cp larasvelte/.env .env.production
+        echo "$ENV_VARIABLES" > .env.production
         sed -i 's|APP_ENV=local|APP_ENV=production|g' .env.production
         sed -i 's|APP_URL=http://localhost:8000|APP_URL='"${PRODUCTION_URL}"'|g' .env.production
-        # Python venv is now inside kleinanz/ alongside the app
         sed -i 's|PYTHON_PATH=../.venv/bin/python|PYTHON_PATH=.venv/bin/python|g' .env.production
         echo "✓ Production .env prepared"
 
@@ -82,8 +86,15 @@ jobs:
         set -e
         cd kleinanz
 
+        echo "▶ Sanity checks before install..."
+        test -f composer.json || { echo "❌ composer.json not found in ~/kleinanz"; exit 1; }
+        command -v composer >/dev/null 2>&1 || { echo "❌ composer is not available on server PATH"; exit 1; }
+
         echo "▶ Installing Composer dependencies..."
         composer install --no-interaction --prefer-dist --optimize-autoloader
+
+        echo "▶ Verifying Laravel autoloader..."
+        test -f vendor/autoload.php || { echo "❌ vendor/autoload.php missing after composer install"; exit 1; }
 
         echo "▶ Installing Node dependencies..."
         npm install

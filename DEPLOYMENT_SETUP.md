@@ -10,6 +10,11 @@ Go to: **GitHub → Settings → Secrets and variables → Actions**
 | `LIMA_SFTP_HOST` | Lima server hostname |
 | `LIMA_SFTP_USERNAME` | Lima SSH username |
 | `LIMA_SSH_PRIVATE_KEY` | Contents of `~/.ssh/deploy_kleinanz` (private key, multi-line) |
+| `KLEINANZ_ENV_VARIABLES` | Contents of your local `larasvelte/.env` (multi-line) |
+
+> `.env` is gitignored so it can't be read from the repo in CI — it must be stored as a secret.
+> The workflow writes it to the server and automatically patches `APP_ENV` → `production`,
+> `APP_URL` → `PRODUCTION_URL`, and `PYTHON_PATH` for the server's venv location.
 
 ### Variables tab
 | Name | Value |
