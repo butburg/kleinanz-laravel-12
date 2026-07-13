@@ -1,0 +1,73 @@
+name: Deploy Laravel Project
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.LIMA_SSH_PRIVATE_KEY }}
+
+    - name: Add SSH key to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.LIMA_SFTP_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Test SSH connection
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST "echo -------- Connection Successful --------"
+
+        
+    - name: Upload files via SSH
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        rsync -r --delete-after --quiet \
+          --exclude '/src/vendor/' \
+          --exclude 'node_modules/' \
+          --exclude 'storage/' \
+          --exclude '.env' \
+          --exclude 'bootstrap/cache/' \
+          --exclude 'public/css/' \
+          --exclude 'public/js/' \
+          --exclude 'database/database.sqlite' \
+          --exclude 'database/old_database.sqlite' \
+          $GITHUB_WORKSPACE/src/ $SFTP_USERNAME@$SFTP_HOST:oe-app/        
+      
+    - name: Upload .env file
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+        ENV_VARIABLES: ${{ secrets.ENV_VARIABLES }}
+      run: |
+        echo "$ENV_VARIABLES" | ssh $SFTP_USERNAME@$SFTP_HOST 'cat > oe-app/.env'
+
+    - name: Run remote SSH commands
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST << 'EOF'
+        cd oe-app
+        composer install --no-interaction --prefer-dist --optimize-autoloader
+        npm install
+        npm run build
+        php artisan migrate --force
+        php artisan config:cache
+        php artisan storage:link
+        EOF

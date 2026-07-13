@@ -1,0 +1,95 @@
+name: Deploy Pinnow Party to Lima
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Set up the SSH key for later us
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.LIMA_SSH_PRIVATE_KEY }}
+
+    - name: Add SSH key to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.LIMA_SFTP_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Test SSH connection
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST "echo -------- Connection Successful --------"
+
+    # Upload the source code
+        
+    - name: Upload files via SSH
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        rsync -r --delete-after --quiet \
+          --exclude '/.offline/' \
+          --exclude '/.github/' \
+          --exclude '/dockerfiles/' \
+          --exclude '/sql/' \
+          --exclude '/vendor/' \
+          --exclude '.htaccess' \
+          --exclude '.htpasswd' \
+          $GITHUB_WORKSPACE/ $SFTP_USERNAME@$SFTP_HOST:pinnow/        
+    # Run composer install at server
+    - name: Run Composer Install on Server
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST 'cd pinnow/ && composer install'    
+
+
+
+    # Generate and upload sensitive files
+      
+    - name: Upload .env file
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+        ENV_VARIABLES: ${{ secrets.ENV_VARIABLES }}
+      run: |
+        echo "$ENV_VARIABLES" | ssh $SFTP_USERNAME@$SFTP_HOST 'cat > pinnow/.env'
+        echo "Successfull created and uploaded env file."
+
+    - name: User and hashed password for placeholders in .htpasswd
+      env:
+        HTPASSWD_PASSWORD: ${{ secrets.HTPASSWD_PASSWORD }}
+        HTPASSWD_USER: ${{ secrets.HTPASSWD_USER }}
+      run: |
+        # Generate htpasswd hash
+         GEN_HTPASSWD_HASH=$(openssl passwd -apr1 "${HTPASSWD_PASSWORD}")
+        # Update .htpasswd files
+        sed -i "s|{{HTPASSWD_USER}}:{{HTPASSWD_HASH}}|${HTPASSWD_USER}:${GEN_HTPASSWD_HASH}|g" public/events/.htpasswd
+        sed -i "s|{{HTPASSWD_USER}}:{{HTPASSWD_HASH}}|${HTPASSWD_USER}:${GEN_HTPASSWD_HASH}|g" public/orga/.htpasswd
+        echo "Successfull created .htpasswd files." 
+        
+    - name: Replace absolute filepath for .passwd in .htaccess
+      run: |
+        sed -i "s|{{HTPASSWD_FILE_PATH}}|${{ secrets.HTPASSWD_FILE_PATH }}|g" public/events/.htaccess
+        sed -i "s|{{HTPASSWD_FILE_PATH}}|${{ secrets.HTPASSWD_FILE_PATH }}|g" public/orga/.htaccess
+        echo "Successfull created .htaccess files." 
+  
+    - name: Deploy .htaccess and .htpasswd to lima
+      run: |
+        scp public/events/.htaccess public/events/.htpasswd ${{ secrets.LIMA_SFTP_USERNAME }}@${{ secrets.LIMA_SFTP_HOST }}:pinnow/public/events/
+        scp public/orga/.htaccess public/orga/.htpasswd ${{ secrets.LIMA_SFTP_USERNAME }}@${{ secrets.LIMA_SFTP_HOST }}:pinnow/public/orga/
+        echo "Successfull uploaded .htaccess and .htpasswd files."      

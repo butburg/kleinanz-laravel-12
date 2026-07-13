@@ -1,0 +1,124 @@
+name: Deploy Kleinanzeigen Laravel 12
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Setup SSH for secure connection to PHP hosting
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.LIMA_SSH_PRIVATE_KEY }}
+
+    - name: Add SSH key to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.LIMA_SFTP_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Test SSH connection
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST "echo -------- Connection Successful --------"
+
+    # Sync only the larasvelte/ app folder directly into kleinanz/ on server
+    # (same pattern as oe-app: src/ → oe-app/)
+    - name: Upload files via rsync
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        rsync -r --delete-after --quiet \
+          --exclude '/vendor/' \
+          --exclude '/node_modules/' \
+          --exclude '/storage/logs/' \
+          --exclude '/storage/app/*' \
+          --exclude '/bootstrap/cache/' \
+          --exclude '/database/database.sqlite' \
+          --exclude '/.env' \
+          --exclude '/public/build/' \
+          --exclude '/public/hot' \
+          $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
+
+    # Prepare .env: copy from repo, replace local values with production values
+    - name: Prepare production .env
+      env:
+        PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+      run: |
+        cp larasvelte/.env .env.production
+        sed -i 's|APP_ENV=local|APP_ENV=production|g' .env.production
+        sed -i 's|APP_URL=http://localhost:8000|APP_URL='"${PRODUCTION_URL}"'|g' .env.production
+        # Python venv is now inside kleinanz/ alongside the app
+        sed -i 's|PYTHON_PATH=../.venv/bin/python|PYTHON_PATH=.venv/bin/python|g' .env.production
+        echo "✓ Production .env prepared"
+
+    # Upload production .env file to server
+    - name: Upload .env file
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        cat .env.production | ssh $SFTP_USERNAME@$SFTP_HOST 'cat > kleinanz/.env'
+        echo "✓ Uploaded .env file"
+
+    # Run deployment steps on server
+    - name: Deploy application
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        ssh $SFTP_USERNAME@$SFTP_HOST << 'DEPLOY_EOF'
+        set -e
+        cd kleinanz
+
+        echo "▶ Installing Composer dependencies..."
+        composer install --no-interaction --prefer-dist --optimize-autoloader
+
+        echo "▶ Installing Node dependencies..."
+        npm install
+
+        echo "▶ Building frontend assets..."
+        npm run build
+
+        echo "▶ Generating application key (if needed)..."
+        php artisan key:generate --force
+
+        echo "▶ Running database migrations..."
+        php artisan migrate --force
+
+        echo "▶ Caching configuration..."
+        php artisan config:cache
+
+        echo "▶ Caching routes..."
+        php artisan route:cache
+
+        echo "▶ Creating storage link..."
+        php artisan storage:link || true
+
+        echo "▶ Setting up Python virtual environment for auto-crop..."
+        if [ ! -d ".venv" ]; then
+          python3 -m venv .venv
+          echo "✓ Created Python venv"
+        fi
+        .venv/bin/pip install --quiet --upgrade pip
+        .venv/bin/pip install --quiet numpy pillow onnxruntime
+        echo "✓ Python dependencies installed"
+
+        echo "✅ Deployment completed successfully!"
+        DEPLOY_EOF
+
+    - name: Deployment Success Notification
+      run: |
+        echo "🎉 Deployment to production completed!"
+        echo "App URL: ${{ vars.PRODUCTION_URL }}"

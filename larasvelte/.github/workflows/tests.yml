@@ -23,15 +23,26 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.4
+          php-version: '8.3'
           tools: composer:v2
           coverage: xdebug
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pillow onnxruntime
 
       - name: Install Node Dependencies
         run: npm ci
@@ -39,7 +50,7 @@ jobs:
       - name: Build Assets
         run: npm run build
 
-      - name: Install Dependencies
+      - name: Install Composer Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Copy Environment File
@@ -48,5 +59,14 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Tests
+      - name: Setup Database
+        run: |
+          touch database/database.sqlite
+          php artisan migrate --force
+
+      - name: Run Tests
         run: ./vendor/bin/pest
+
+      - name: Generate Coverage Report
+        if: always()
+        run: ./vendor/bin/phpunit --coverage-html coverage/ || true
