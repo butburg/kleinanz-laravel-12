@@ -22,18 +22,32 @@ The workflow uses `.env` from the repo as-is (with all DB credentials, OpenAI ke
 
 ## SSH Key Setup (one-time)
 
+> ⚠️ Must use `-m PEM` flag — default OpenSSH format causes "error in libcrypto" in GitHub Actions.
+
 ```bash
-# 1. Generate key locally
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/deploy_kleinanz
-# (no passphrase)
+# 1. Generate key in PEM format (on local WSL machine)
+ssh-keygen -t rsa -b 4096 -m PEM -f ~/.ssh/deploy_kleinanz
+# Press Enter twice (no passphrase)
+# Key must start with: -----BEGIN RSA PRIVATE KEY-----
+# NOT:                 -----BEGIN OPENSSH PRIVATE KEY-----
+```
 
-# 2. Add public key to Lima server (via hosting web console)
+```bash
+# 2. Copy public key → add to Lima server (via hosting web console)
 cat ~/.ssh/deploy_kleinanz.pub
-# Paste into ~/.ssh/authorized_keys on Lima
+# Paste as a new line in ~/.ssh/authorized_keys on Lima
+```
 
-# 3. Add private key to GitHub (Secrets → LIMA_SSH_PRIVATE_KEY)
+```bash
+# 3. Copy private key → add to GitHub secret LIMA_SSH_PRIVATE_KEY
 cat ~/.ssh/deploy_kleinanz
 # Paste entire content including BEGIN/END lines
+```
+
+**If regenerating** (e.g. fixing the format error):
+```bash
+rm ~/.ssh/deploy_kleinanz ~/.ssh/deploy_kleinanz.pub
+# Then repeat steps 1–3 above, replacing old key in Lima and GitHub
 ```
 
 ---
