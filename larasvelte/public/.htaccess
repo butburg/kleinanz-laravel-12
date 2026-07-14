@@ -1,3 +1,9 @@
+<Files ~ "\.php$">
+    <If "-f %{REQUEST_FILENAME}">
+        SetHandler "proxy:unix:/usr/share/lima/php-eweedy/php-fpm-84|fcgi://localhost-eweedy-php84"
+    </If>
+</Files>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
