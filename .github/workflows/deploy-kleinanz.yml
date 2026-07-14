@@ -83,15 +83,25 @@ jobs:
         SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
       run: |
         ssh $SFTP_USERNAME@$SFTP_HOST << 'DEPLOY_EOF'
-        set -e
+        set -euo pipefail
         cd kleinanz
 
+        PHP_BIN=/opt/lima-php/8.4/bin/php
+
         echo "▶ Sanity checks before install..."
+        echo "Using PHP binary: $PHP_BIN"
         test -f composer.json || { echo "❌ composer.json not found in ~/kleinanz"; exit 1; }
-        command -v composer >/dev/null 2>&1 || { echo "❌ composer is not available on server PATH"; exit 1; }
+        test -x "$PHP_BIN" || { echo "❌ PHP binary not found or not executable: $PHP_BIN"; exit 1; }
+        COMPOSER_BIN=$(command -v composer || true)
+        [ -n "$COMPOSER_BIN" ] || { echo "❌ composer is not available on server PATH"; exit 1; }
+        "$PHP_BIN" -v
+        "$COMPOSER_BIN" --version
 
         echo "▶ Installing Composer dependencies..."
-        composer install --no-interaction --prefer-dist --optimize-autoloader
+        "$PHP_BIN" "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+        echo "▶ Checking Composer platform requirements..."
+        "$PHP_BIN" "$COMPOSER_BIN" check-platform-reqs
 
         echo "▶ Verifying Laravel autoloader..."
         test -f vendor/autoload.php || { echo "❌ vendor/autoload.php missing after composer install"; exit 1; }
@@ -102,20 +112,28 @@ jobs:
         echo "▶ Building frontend assets..."
         npm run build
 
-        echo "▶ Generating application key (if needed)..."
-        php artisan key:generate --force
+        if grep -Eq '^APP_KEY=.+$' .env; then
+          echo "▶ APP_KEY already present, skipping key generation..."
+        else
+          echo "▶ APP_KEY missing, generating application key..."
+          "$PHP_BIN" artisan key:generate --force
+        fi
 
         echo "▶ Running database migrations..."
-        php artisan migrate --force
+        "$PHP_BIN" artisan migrate --force
 
         echo "▶ Caching configuration..."
-        php artisan config:cache
+        "$PHP_BIN" artisan config:cache
 
         echo "▶ Caching routes..."
-        php artisan route:cache
+        "$PHP_BIN" artisan route:cache
 
         echo "▶ Creating storage link..."
-        php artisan storage:link || true
+        if [ -L public/storage ] || [ -e public/storage ]; then
+          echo "✓ public/storage already exists, skipping storage:link"
+        else
+          "$PHP_BIN" artisan storage:link
+        fi
 
         echo "▶ Setting up Python virtual environment for auto-crop..."
         if [ ! -d ".venv" ]; then
