@@ -51,6 +51,7 @@ jobs:
           --exclude '/bootstrap/cache/' \
           --exclude '/database/database.sqlite' \
           --exclude '/.env' \
+          --exclude '/.venv/' \
           --exclude '/public/build/' \
           --exclude '/public/hot' \
           $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
@@ -142,13 +143,35 @@ jobs:
         fi
 
         echo "▶ Setting up Python virtual environment for auto-crop..."
-        if [ ! -d ".venv" ]; then
-          python3 -m venv .venv
+        VENV_PYTHON=.venv/bin/python
+        if [ -x "$VENV_PYTHON" ]; then
+          echo "✓ Reusing existing Python venv"
+        else
+          echo "▶ No existing .venv found, creating one..."
+          python3 -c "import venv" >/dev/null 2>&1 || {
+            echo "❌ python3 venv module is unavailable on the host"
+            exit 1
+          }
+          python3 -m venv .venv || {
+            echo "❌ Failed to create .venv. The host Python cannot build virtual environments cleanly."
+            exit 1
+          }
           echo "✓ Created Python venv"
         fi
-        .venv/bin/pip install --quiet --upgrade pip
-        .venv/bin/pip install --quiet numpy pillow onnxruntime
-        echo "✓ Python dependencies installed"
+
+        "$VENV_PYTHON" --version
+
+        if "$VENV_PYTHON" -c "import numpy, PIL, onnxruntime" >/dev/null 2>&1; then
+          echo "✓ Python dependencies already available"
+        else
+          "$VENV_PYTHON" -m pip --version >/dev/null 2>&1 || {
+            echo "❌ .venv exists, but pip is unavailable inside it. Rebuild the venv on a host with python3-venv/ensurepip enabled."
+            exit 1
+          }
+          "$VENV_PYTHON" -m pip install --quiet --upgrade pip
+          "$VENV_PYTHON" -m pip install --quiet numpy pillow onnxruntime
+          echo "✓ Python dependencies installed"
+        fi
 
         echo "✅ Deployment completed successfully!"
         DEPLOY_EOF
