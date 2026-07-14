@@ -97,6 +97,12 @@ jobs:
         "$PHP_BIN" -v
         "$COMPOSER_BIN" --version
 
+        echo "▶ Preparing Laravel writable directories..."
+        mkdir -p bootstrap/cache storage/framework/{cache,sessions,testing,views} storage/logs
+        chmod -R u+rwX bootstrap/cache storage
+        test -d bootstrap/cache || { echo "❌ bootstrap/cache could not be created"; exit 1; }
+        test -w bootstrap/cache || { echo "❌ bootstrap/cache is not writable"; exit 1; }
+
         echo "▶ Installing Composer dependencies..."
         "$PHP_BIN" "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
