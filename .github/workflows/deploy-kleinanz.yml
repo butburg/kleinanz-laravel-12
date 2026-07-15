@@ -57,6 +57,19 @@ jobs:
           --exclude '/public/hot' \
           $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
 
+    - name: Warn on missing deployment variables
+      env:
+        PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        ENV_VARIABLES: ${{ secrets.KLEINANZ_ENV_VARIABLES }}
+      run: |
+        if [ -z "${PRODUCTION_URL:-}" ]; then
+          echo "::warning::GitHub Actions variable PRODUCTION_URL is not set. APP_URL will be written as empty in the production .env and the final App URL log line will be blank."
+        fi
+
+        if [ -z "${ENV_VARIABLES:-}" ]; then
+          echo "::warning::GitHub Actions secret KLEINANZ_ENV_VARIABLES is not set. The workflow cannot build the production .env file."
+        fi
+
     # Write .env directly from secret, then patch production-specific values
     - name: Prepare production .env
       env:
