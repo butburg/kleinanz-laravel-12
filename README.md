@@ -158,6 +158,20 @@ See [docs/](no_laravel/docs/) for detailed guides:
 
 ## Troubleshooting
 
+**Running Laravel CLI on the server?**
+The hosting default `php` binary is older than the app requirement. Before running `php artisan`, `composer`, or other PHP CLI commands manually on the server, switch the shell session to PHP 8.4:
+```bash
+export PATH="/opt/lima-php/8.4/bin:$PATH"
+```
+This only affects the current bash session and makes `php` resolve to the same PHP 8.4 binary used in deployment.
+
+**Need to check which database the live app is using?**
+Use Laravel config via Tinker instead of reading `.env` directly:
+```bash
+php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.'.config('database.default').'.database'));"
+```
+This is a troubleshooting/debug command. It prints the active connection name first, for example `mysql`, and then the configured database name, for example `db_439120_9`.
+
 **Database error?**
 ```bash
 rm database/database.sqlite
