@@ -94,6 +94,7 @@ class AutoCropImage implements ShouldQueue
     private function runAutoCrop(string $imagePath): ?array
     {
         $pythonPath = (string) config('services.python.path', 'python3');
+        $pythonPackagesPath = (string) config('services.python.packages_path', '');
         $scriptPath = config('ads.auto_crop.script_path');
         $modelPath = config('services.onnx.model_path', storage_path('models/yolov8n-fashionpedia-1.onnx'));
         $detectionThreshold = config('ads.auto_crop.detection_threshold', 0.7);
@@ -102,21 +103,33 @@ class AutoCropImage implements ShouldQueue
 
         $outputImagePath = Storage::disk('public')->path($this->generateCroppedFilename());
 
-        // Build command
-        $command = sprintf(
-            '%s %s %s --output %s --model %s --detection-threshold %.2f --closeup-threshold %.2f --margin-percent %d',
-            escapeshellarg($pythonPath),
-            escapeshellarg($scriptPath),
-            escapeshellarg($imagePath),
-            escapeshellarg($outputImagePath),
-            escapeshellarg($modelPath),
-            $detectionThreshold,
-            $closeupThreshold,
-            $marginPercent
-        );
+        $command = [
+            $pythonPath,
+            $scriptPath,
+            $imagePath,
+            '--output',
+            $outputImagePath,
+            '--model',
+            $modelPath,
+            '--detection-threshold',
+            sprintf('%.2f', $detectionThreshold),
+            '--closeup-threshold',
+            sprintf('%.2f', $closeupThreshold),
+            '--margin-percent',
+            (string) $marginPercent,
+        ];
+
+        $environment = [];
+        if ($pythonPackagesPath !== '') {
+            $existingPythonPath = getenv('PYTHONPATH');
+            $environment['PYTHONPATH'] = $existingPythonPath
+                ? $pythonPackagesPath.PATH_SEPARATOR.$existingPythonPath
+                : $pythonPackagesPath;
+        }
 
         try {
             $result = Process::timeout($this->timeout)
+                ->env($environment)
                 ->run($command);
 
             if (! $result->successful()) {

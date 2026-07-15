@@ -52,6 +52,7 @@ jobs:
           --exclude '/database/database.sqlite' \
           --exclude '/.env' \
           --exclude '/.venv/' \
+          --exclude '/.python-packages/' \
           --exclude '/public/build/' \
           --exclude '/public/hot' \
           $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
@@ -65,7 +66,17 @@ jobs:
         echo "$ENV_VARIABLES" > .env.production
         sed -i 's|APP_ENV=local|APP_ENV=production|g' .env.production
         sed -i 's|APP_URL=http://localhost:8000|APP_URL='"${PRODUCTION_URL}"'|g' .env.production
-        sed -i 's|PYTHON_PATH=../.venv/bin/python|PYTHON_PATH=.venv/bin/python|g' .env.production
+        sed -i 's|PYTHON_PATH=../.venv/bin/python|PYTHON_PATH=python3|g' .env.production
+        if grep -q '^PYTHON_PATH=' .env.production; then
+          sed -i 's|^PYTHON_PATH=.*|PYTHON_PATH=python3|g' .env.production
+        else
+          echo 'PYTHON_PATH=python3' >> .env.production
+        fi
+        if grep -q '^PYTHON_PACKAGES_PATH=' .env.production; then
+          sed -i 's|^PYTHON_PACKAGES_PATH=.*|PYTHON_PACKAGES_PATH=.python-packages|g' .env.production
+        else
+          echo 'PYTHON_PACKAGES_PATH=.python-packages' >> .env.production
+        fi
         echo "✓ Production .env prepared"
 
     # Upload production .env file to server
@@ -142,34 +153,27 @@ jobs:
           "$PHP_BIN" artisan storage:link
         fi
 
-        echo "▶ Setting up Python virtual environment for auto-crop..."
-        VENV_PYTHON=.venv/bin/python
-        if [ -x "$VENV_PYTHON" ]; then
-          echo "✓ Reusing existing Python venv"
-        else
-          echo "▶ No existing .venv found, creating one..."
-          python3 -c "import venv" >/dev/null 2>&1 || {
-            echo "❌ python3 venv module is unavailable on the host"
-            exit 1
-          }
-          python3 -m venv .venv || {
-            echo "❌ Failed to create .venv. The host Python cannot build virtual environments cleanly."
-            exit 1
-          }
-          echo "✓ Created Python venv"
-        fi
+        echo "▶ Setting up project-local Python packages for auto-crop..."
+        PYTHON_BIN=python3
+        PYTHON_PACKAGES_DIR=.python-packages
+        test -x "$(command -v "$PYTHON_BIN")" || { echo "❌ python3 is not available on server PATH"; exit 1; }
+        "$PYTHON_BIN" --version
+        mkdir -p "$PYTHON_PACKAGES_DIR"
 
-        "$VENV_PYTHON" --version
-
-        if "$VENV_PYTHON" -c "import numpy, PIL, onnxruntime" >/dev/null 2>&1; then
+        if PYTHONPATH="$PWD/$PYTHON_PACKAGES_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+          "$PYTHON_BIN" -c "import numpy, PIL, onnxruntime" >/dev/null 2>&1; then
           echo "✓ Python dependencies already available"
         else
-          "$VENV_PYTHON" -m pip --version >/dev/null 2>&1 || {
-            echo "❌ .venv exists, but pip is unavailable inside it. Rebuild the venv on a host with python3-venv/ensurepip enabled."
+          "$PYTHON_BIN" -m pip --version >/dev/null 2>&1 || {
+            echo "❌ pip is unavailable for python3 on the host"
             exit 1
           }
-          "$VENV_PYTHON" -m pip install --quiet --upgrade pip
-          "$VENV_PYTHON" -m pip install --quiet numpy pillow onnxruntime
+          "$PYTHON_BIN" -m pip install --quiet --target "$PYTHON_PACKAGES_DIR" numpy pillow onnxruntime
+          PYTHONPATH="$PWD/$PYTHON_PACKAGES_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+            "$PYTHON_BIN" -c "import numpy, PIL, onnxruntime" >/dev/null 2>&1 || {
+              echo "❌ Python dependencies were installed but cannot be imported"
+              exit 1
+            }
           echo "✓ Python dependencies installed"
         fi
 

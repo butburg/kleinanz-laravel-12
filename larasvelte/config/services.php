@@ -45,7 +45,8 @@ return [
     ],
 
     'python' => [
-        'path' => env('PYTHON_PATH', base_path('../.venv/bin/python')),
+        'path' => env('PYTHON_PATH', 'python3'),
+        'packages_path' => env('PYTHON_PACKAGES_PATH', base_path('../.python-packages')),
     ],
 
 ];

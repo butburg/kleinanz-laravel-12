@@ -14,7 +14,7 @@ Go to: **GitHub → Settings → Secrets and variables → Actions**
 
 > `.env` is gitignored so it can't be read from the repo in CI — it must be stored as a secret.
 > The workflow writes it to the server and automatically patches `APP_ENV` → `production`,
-> `APP_URL` → `PRODUCTION_URL`, and `PYTHON_PATH` for the server's venv location.
+> `APP_URL` → `PRODUCTION_URL`, `PYTHON_PATH=python3`, and `PYTHON_PACKAGES_PATH=.python-packages`.
 
 ### Variables tab
 | Name | Value |
@@ -59,4 +59,4 @@ rm ~/.ssh/deploy_kleinanz ~/.ssh/deploy_kleinanz.pub
 
 ## Python / Auto-Crop
 
-Lima has Python 3.12 available. The workflow automatically creates a `.venv` inside `~/kleinanz/` and installs `numpy`, `pillow`, `onnxruntime` on every deploy (fast if already installed). No manual setup needed.
+Lima has Python 3.12 available, but `venv` is not usable on this host. The workflow therefore installs `numpy`, `pillow`, and `onnxruntime` into `~/kleinanz/.python-packages` via `python3 -m pip --target ...` and reuses that directory on later deploys.

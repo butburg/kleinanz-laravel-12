@@ -14,7 +14,7 @@ cd larasvelte
 - PHP 8.3+
 - Node.js 20+
 - Composer
-- Python 3.12+ (for YOLO auto-crop script)
+- Python 3.12+ with `pip` (for YOLO auto-crop script)
 
 ### Installation
 
@@ -25,13 +25,11 @@ composer install
 npm install
 ```
 
-2. **Create project Python virtualenv (repo root):**
+2. **Install project-local Python packages (repo root):**
 ```bash
 cd ..
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install numpy pillow onnxruntime
+mkdir -p .python-packages
+python3 -m pip install --target .python-packages numpy pillow onnxruntime
 cd larasvelte
 ```
 
@@ -188,8 +186,8 @@ npm install
 **Auto-crop Python dependencies missing?**
 ```bash
 cd /home/butburg/repos/kleinanz-laravel-12
-source .venv/bin/activate
-pip install numpy pillow onnxruntime
+mkdir -p .python-packages
+python3 -m pip install --target .python-packages numpy pillow onnxruntime
 ```
 
 **Port 8000 already in use?**
