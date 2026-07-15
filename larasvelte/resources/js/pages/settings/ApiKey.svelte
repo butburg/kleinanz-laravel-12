@@ -43,7 +43,12 @@
     ];
 
     let apiKeyInput = $state(null as unknown as HTMLInputElement);
-    let isAddingKey = $state(!maskedApiKey);
+    let isAddingKey = $state(false);
+    $effect(() => {
+        if (!maskedApiKey) {
+            isAddingKey = true;
+        }
+    });
     let showDeleteDialog = $state(false);
     let testMode = $state(false);
     let testLoading = $state(false);

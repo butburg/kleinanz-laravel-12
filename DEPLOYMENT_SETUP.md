@@ -21,7 +21,7 @@ Go to: **GitHub → Settings → Secrets and variables → Actions**
 |------|-------|
 | `PRODUCTION_URL` | `https://yourdomain.com/kleinanz/public` |
 
-The workflow uses `.env` from the repo as-is (with all DB credentials, OpenAI key etc.) and only overwrites `APP_ENV` → `production` and `APP_URL` → `PRODUCTION_URL`.
+The workflow uses `.env` from the repo as-is (with all DB credentials, OpenAI key etc.) and only overwrites `APP_ENV` → `production`, `APP_URL` → `PRODUCTION_URL`, `PYTHON_PATH=python3`, and `PYTHON_PACKAGES_PATH=.python-packages`.
 
 ---
 

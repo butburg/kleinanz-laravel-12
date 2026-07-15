@@ -63,20 +63,23 @@ jobs:
         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         ENV_VARIABLES: ${{ secrets.KLEINANZ_ENV_VARIABLES }}
       run: |
-        echo "$ENV_VARIABLES" > .env.production
-        sed -i 's|APP_ENV=local|APP_ENV=production|g' .env.production
-        sed -i 's|APP_URL=http://localhost:8000|APP_URL='"${PRODUCTION_URL}"'|g' .env.production
-        sed -i 's|PYTHON_PATH=../.venv/bin/python|PYTHON_PATH=python3|g' .env.production
-        if grep -q '^PYTHON_PATH=' .env.production; then
-          sed -i 's|^PYTHON_PATH=.*|PYTHON_PATH=python3|g' .env.production
-        else
-          echo 'PYTHON_PATH=python3' >> .env.production
-        fi
-        if grep -q '^PYTHON_PACKAGES_PATH=' .env.production; then
-          sed -i 's|^PYTHON_PACKAGES_PATH=.*|PYTHON_PACKAGES_PATH=.python-packages|g' .env.production
-        else
-          echo 'PYTHON_PACKAGES_PATH=.python-packages' >> .env.production
-        fi
+        set -euo pipefail
+        printf '%s\n' "$ENV_VARIABLES" > .env.production
+
+        upsert_env() {
+          key="$1"
+          value="$2"
+          tmp_file="$(mktemp)"
+          grep -v "^${key}=" .env.production > "$tmp_file" || true
+          printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+          mv "$tmp_file" .env.production
+        }
+
+        upsert_env APP_ENV production
+        upsert_env APP_URL "$PRODUCTION_URL"
+        upsert_env PYTHON_PATH python3
+        upsert_env PYTHON_PACKAGES_PATH .python-packages
+
         echo "✓ Production .env prepared"
 
     # Upload production .env file to server
@@ -181,6 +184,8 @@ jobs:
         DEPLOY_EOF
 
     - name: Deployment Success Notification
+      env:
+        PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
       run: |
         echo "🎉 Deployment to production completed!"
-        echo "App URL: ${{ vars.PRODUCTION_URL }}"
+        echo "App URL: $PRODUCTION_URL"
