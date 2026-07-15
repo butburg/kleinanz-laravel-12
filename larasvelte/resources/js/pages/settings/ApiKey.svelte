@@ -30,7 +30,7 @@
     let { maskedApiKey, status, useTestMode = false }: Props = $props();
 
     // Reactive state that updates when page props change
-    let testModeEnabled = $state(useTestMode);
+    let testModeEnabled = $state(false);
     $effect(() => {
         testModeEnabled = useTestMode;
     });

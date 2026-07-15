@@ -67,19 +67,19 @@
 
     let { ad, options }: Props = $props();
 
-    const breadcrumbs: BreadcrumbItem[] = [
+    let breadcrumbs: BreadcrumbItem[] = $derived([
         { title: 'Ads', href: '/ads' },
         { title: 'Edit', href: `/ads/${ad.id}/edit` },
-    ];
+    ]);
 
     // Form state
-    let titleValue = $state(ad.title);
-    let descriptionValue = $state(ad.description);
-    let priceValue = $state<number | ''>(ad.price);
-    let conditionValue = $state(ad.condition);
-    let shippingValue = $state(ad.shipping);
-    let statusValue = $state(ad.status);
-    let promptValue = $state(ad.prompt_text ?? '');
+    let titleValue = $state('');
+    let descriptionValue = $state('');
+    let priceValue = $state<number | ''>('');
+    let conditionValue = $state('');
+    let shippingValue = $state('');
+    let statusValue = $state('');
+    let promptValue = $state('');
     let selectedImages = $state<FileList | null>(null);
     let selectedImageNames = $state<string[]>([]);
     let showGenerateConfirm = $state(false);
@@ -88,6 +88,16 @@
     let fieldStates = $state<Record<string, 'saved' | 'saving' | 'error'>>({});
     let fieldErrors = $state<Record<string, string>>({});
     let saveTimeouts = new Map<string, number>();
+
+    $effect(() => {
+        titleValue = ad.title;
+        descriptionValue = ad.description;
+        priceValue = ad.price;
+        conditionValue = ad.condition;
+        shippingValue = ad.shipping;
+        statusValue = ad.status;
+        promptValue = ad.prompt_text ?? '';
+    });
 
     // Derived state
     let hasImages = $derived(ad.images.length > 0);
