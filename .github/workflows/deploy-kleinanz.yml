@@ -89,7 +89,10 @@ jobs:
         }
 
         upsert_env APP_ENV production
+        upsert_env APP_DEBUG false
         upsert_env APP_URL "$PRODUCTION_URL"
+        upsert_env BOOST_ENABLED false
+        upsert_env BOOST_BROWSER_LOGS_WATCHER false
         upsert_env PYTHON_PATH python3
         upsert_env PYTHON_PACKAGES_PATH .python-packages
 
