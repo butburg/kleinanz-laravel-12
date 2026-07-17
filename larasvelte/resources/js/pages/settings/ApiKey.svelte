@@ -103,7 +103,7 @@
                                     resetOnSuccess
                                     onSuccess={() => (showDeleteDialog = false)}
                                 >
-                                    {#snippet children({ processing })}
+                                    {#snippet children({ processing }: { processing: boolean })}
                                         <DialogHeader class="space-y-3">
                                             <DialogTitle>Remove API Key?</DialogTitle>
                                             <DialogDescription>
@@ -215,7 +215,7 @@
                         }}
                         class="space-y-4"
                     >
-                        {#snippet children({ errors, processing, recentlySuccessful })}
+                        {#snippet children({ errors, processing, recentlySuccessful }: { errors: Record<string, string>; processing: boolean; recentlySuccessful: boolean })}
                             <div class="grid gap-2">
                                 <Label for="openai_api_key">API Key</Label>
                                 <Input

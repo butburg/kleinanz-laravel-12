@@ -17,13 +17,22 @@
     }
 
     let { status, canResetPassword, canRegister }: Props = $props();
+
+    const appName = import.meta.env.VITE_APP_NAME || 'AdForge Studio';
 </script>
 
 <svelte:head>
     <title>Login</title>
 </svelte:head>
 
-<AuthBase title="Log in to your account" description="Enter your email and password below to log in">
+<AuthBase title={`Log in to ${appName}`} description="">
+    <figure class="space-y-2 text-center">
+        <img src="/legacy/faust.jpg" alt="Faust" class="mx-auto max-h-56 w-auto rounded-md border" loading="lazy" />
+        <figcaption class="text-sm text-muted-foreground">Und jetzt kommt die riesen Faust</figcaption>
+    </figure>
+
+    <p class="text-center text-sm text-muted-foreground">Enter your email and password below to log in.</p>
+
     {#if status}
         <div class="mb-4 text-center text-sm font-medium text-green-600">
             {status}

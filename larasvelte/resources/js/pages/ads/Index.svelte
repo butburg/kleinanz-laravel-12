@@ -3,7 +3,7 @@
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
-    import { Form, Link, router } from '@inertiajs/svelte';
+    import { Form, Link, page, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
 
     type Ad = {
@@ -68,12 +68,14 @@
         };
     }
 
-    const breadcrumbs: BreadcrumbItem[] = [
+    let isCreateAdPage = $derived($page.url === '/dashboard');
+
+    let breadcrumbs: BreadcrumbItem[] = $derived([
         {
-            title: 'Ads',
-            href: '/ads',
+            title: isCreateAdPage ? 'Create Ad' : 'Ads',
+            href: isCreateAdPage ? '/dashboard' : '/ads',
         },
-    ];
+    ]);
 
     let { ads, statusOptions, options, aiStatus, flash, errors }: Props = $props();
     let copyFeedback = $state<string | null>(null);
@@ -92,7 +94,6 @@
     let promptValue = $state('');
     let isSubmitting = $state(false);
     let isPreparingImages = $state(false);
-    let createExpanded = $state(false);
 
     // Derived state
     let imageCount = $derived(pendingImages.length);
@@ -202,7 +203,6 @@
         pendingImages = [];
         selectedTitleIndex = 0;
         promptValue = '';
-        createExpanded = false;
     }
 
     async function onImageSelection(event: Event): Promise<void> {
@@ -310,6 +310,16 @@
         }
     }
 
+    function closeStatusMenu(event: MouseEvent): void {
+        const trigger = event.currentTarget;
+        if (!(trigger instanceof HTMLElement)) return;
+
+        const details = trigger.closest('details');
+        if (details) {
+            details.open = false;
+        }
+    }
+
     async function copyText(text: string, successMessage: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(text);
@@ -340,7 +350,7 @@
 </script>
 
 <svelte:head>
-    <title>Ads</title>
+    <title>{isCreateAdPage ? 'Create Ad' : 'Ads'}</title>
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
@@ -357,12 +367,9 @@
             </div>
         {/if}
 
-        <!-- Create Ad Expandable Card -->
-        <details bind:open={createExpanded} class="rounded-md border bg-card shadow-sm">
-            <summary class="cursor-pointer px-4 py-3 font-medium hover:bg-muted/50">
-                Create Ad
-            </summary>
-            <div class="space-y-4 border-t px-4 py-4">
+        {#if isCreateAdPage}
+            <div class="rounded-md border bg-card shadow-sm">
+                <div class="space-y-4 px-4 py-4">
                 <!-- AI Status Warnings -->
                 {#if aiStatus?.use_test_mode}
                     <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
@@ -521,137 +528,139 @@
                 >
                     Generate Ad
                 </Button>
+                </div>
             </div>
-        </details>
-
-        <h1 class="text-2xl font-semibold">My Ads</h1>
-
-        {#if ads.data.length === 0}
-            <p class="text-muted-foreground">No ads yet.</p>
         {:else}
-            <ul data-test="ads-list">
-                {#each ads.data as ad (ad.id)}
-                    <li class="border-b py-4 last:border-b-0">
-                        <div class="flex min-w-0 flex-col gap-3">
-                            {#if ad.thumbnail_url}
-                                <img
-                                    src={ad.thumbnail_url}
-                                    alt={`Thumbnail for ${ad.title}`}
-                                    class="h-[220px] w-full max-w-[220px] rounded-md border object-cover"
-                                    data-test={`ad-thumbnail-${ad.id}`}
-                                />
-                            {/if}
-                            <div class="min-w-0 space-y-2">
-                                <div class="font-medium">{ad.title}</div>
-                                <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                    <details class="relative inline-block" data-test={`status-menu-${ad.id}`}>
-                                        <summary
-                                            class={`inline-flex cursor-pointer list-none rounded-md border px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(ad.status_color)}`}
-                                            data-test={`ad-status-${ad.id}`}
-                                        >
-                                            {ad.status}
-                                        </summary>
-                                        <div class="absolute z-10 mt-1 min-w-36 rounded-md border bg-background p-1 shadow-md">
-                                            {#each statusOptions as statusOption (statusOption)}
-                                                <Form method="patch" action={route('ads.status.update', ad.id)}>
-                                                    <input type="hidden" name="status" value={statusOption} />
-                                                    <button
-                                                        type="submit"
-                                                        class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
-                                                    >
-                                                        {statusOption}
-                                                    </button>
-                                                </Form>
-                                            {/each}
-                                        </div>
-                                    </details>
-                                    <span>{ad.price} EUR</span>
-                                </div>
-                                {#if ad.expiry_at}
-                                    <div class="text-xs" data-test={`ad-expiry-${ad.id}`}>
-                                        <span class={ad.is_expired ? 'text-red-700' : 'text-amber-700'}>
-                                            Expires {ad.expiry_at}
-                                            {#if ad.is_expired}
-                                                (Expired)
-                                            {:else if ad.days_to_expiry !== null}
-                                                ({ad.days_to_expiry}d left)
-                                            {/if}
-                                        </span>
-                                    </div>
+            <h1 class="text-2xl font-semibold">My Ads</h1>
+
+            {#if ads.data.length === 0}
+                <p class="text-muted-foreground">No ads yet.</p>
+            {:else}
+                <ul data-test="ads-list">
+                    {#each ads.data as ad (ad.id)}
+                        <li class="border-b py-4 last:border-b-0">
+                            <div class="flex min-w-0 flex-col gap-3">
+                                {#if ad.thumbnail_url}
+                                    <img
+                                        src={ad.thumbnail_url}
+                                        alt={`Thumbnail for ${ad.title}`}
+                                        class="h-[220px] w-full max-w-[220px] rounded-md border object-cover"
+                                        data-test={`ad-thumbnail-${ad.id}`}
+                                    />
                                 {/if}
-
-                                <div class="mt-3 flex flex-col gap-2">
-                                    <div class="flex flex-wrap gap-2">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            class="w-full sm:w-auto"
-                                            onclick={() => {
-                                                void copyText(ad.title, 'Title copied.');
-                                            }}
-                                        >
-                                            Copy title
-                                        </Button>
-
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            class="w-full sm:w-auto"
-                                            onclick={() => {
-                                                void copyText(ad.description, 'Description copied.');
-                                            }}
-                                        >
-                                            Copy description
-                                        </Button>
+                                <div class="min-w-0 space-y-2">
+                                    <div class="font-medium">{ad.title}</div>
+                                    <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                        <details class="relative inline-block" data-test={`status-menu-${ad.id}`}>
+                                            <summary
+                                                class={`inline-flex cursor-pointer list-none rounded-md border px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(ad.status_color)}`}
+                                                data-test={`ad-status-${ad.id}`}
+                                            >
+                                                {ad.status}
+                                            </summary>
+                                            <div class="absolute z-10 mt-1 min-w-36 rounded-md border bg-background p-1 shadow-md">
+                                                {#each statusOptions as statusOption (statusOption)}
+                                                    <Form method="patch" action={route('ads.status.update', ad.id)}>
+                                                        <input type="hidden" name="status" value={statusOption} />
+                                                        <button
+                                                            type="submit"
+                                                            class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
+                                                            onclick={closeStatusMenu}
+                                                        >
+                                                            {statusOption}
+                                                        </button>
+                                                    </Form>
+                                                {/each}
+                                            </div>
+                                        </details>
+                                        <span>{ad.price} EUR</span>
                                     </div>
+                                    {#if ad.expiry_at}
+                                        <div class="text-xs" data-test={`ad-expiry-${ad.id}`}>
+                                            <span class={ad.is_expired ? 'text-red-700' : 'text-amber-700'}>
+                                                Expires {ad.expiry_at}
+                                                {#if ad.is_expired}
+                                                    (Expired)
+                                                {:else if ad.days_to_expiry !== null}
+                                                    ({ad.days_to_expiry}d left)
+                                                {/if}
+                                            </span>
+                                        </div>
+                                    {/if}
 
-                                    {#if ad.images.length > 0}
+                                    <div class="mt-3 flex flex-col gap-2">
                                         <div class="flex flex-wrap gap-2">
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                variant="secondary"
+                                                variant="outline"
                                                 class="w-full sm:w-auto"
-                                                onclick={() => downloadAllImages(ad.images)}
-                                                data-test={`download-images-${ad.id}`}
+                                                onclick={() => {
+                                                    void copyText(ad.title, 'Title copied.');
+                                                }}
                                             >
-                                                Download all images
+                                                Copy title
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                class="w-full sm:w-auto"
+                                                onclick={() => {
+                                                    void copyText(ad.description, 'Description copied.');
+                                                }}
+                                            >
+                                                Copy description
                                             </Button>
                                         </div>
-                                    {/if}
 
-                                    <div class="flex flex-wrap gap-2">
-                                        <Link href={route('ads.edit', ad.id)}>
-                                            <Button size="sm" class="w-full sm:w-auto">Edit ad</Button>
-                                        </Link>
+                                        {#if ad.images.length > 0}
+                                            <div class="flex flex-wrap gap-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    class="w-full sm:w-auto"
+                                                    onclick={() => downloadAllImages(ad.images)}
+                                                    data-test={`download-images-${ad.id}`}
+                                                >
+                                                    Download all images
+                                                </Button>
+                                            </div>
+                                        {/if}
+
+                                        <div class="flex flex-wrap gap-2">
+                                            <Link href={route('ads.edit', ad.id)}>
+                                                <Button size="sm" class="w-full sm:w-auto">Edit ad</Button>
+                                            </Link>
+                                        </div>
                                     </div>
+                                    {#if copyFeedback}
+                                        <p class="mt-1 text-xs text-muted-foreground" data-test="copy-feedback">{copyFeedback}</p>
+                                    {/if}
                                 </div>
-                                {#if copyFeedback}
-                                    <p class="mt-1 text-xs text-muted-foreground" data-test="copy-feedback">{copyFeedback}</p>
-                                {/if}
                             </div>
-                        </div>
-                    </li>
-                {/each}
-            </ul>
+                        </li>
+                    {/each}
+                </ul>
 
-            <div class="mt-2 flex items-center justify-between">
-                <div class="text-xs text-muted-foreground">Page {ads.current_page} of {ads.last_page}</div>
-                <div class="flex items-center gap-2">
-                    {#if ads.prev_page_url}
-                        <Link href={ads.prev_page_url}>
-                            <Button size="sm" variant="outline">Previous</Button>
-                        </Link>
-                    {/if}
-                    {#if ads.next_page_url}
-                        <Link href={ads.next_page_url}>
-                            <Button size="sm" variant="outline">Next</Button>
-                        </Link>
-                    {/if}
+                <div class="mt-2 flex items-center justify-between">
+                    <div class="text-xs text-muted-foreground">Page {ads.current_page} of {ads.last_page}</div>
+                    <div class="flex items-center gap-2">
+                        {#if ads.prev_page_url}
+                            <Link href={ads.prev_page_url}>
+                                <Button size="sm" variant="outline">Previous</Button>
+                            </Link>
+                        {/if}
+                        {#if ads.next_page_url}
+                            <Link href={ads.next_page_url}>
+                                <Button size="sm" variant="outline">Next</Button>
+                            </Link>
+                        {/if}
+                    </div>
                 </div>
-            </div>
+            {/if}
         {/if}
     </div>
 </AppLayout>

@@ -2,7 +2,7 @@ import { createInertiaApp } from '@inertiajs/svelte';
 import createServer from '@inertiajs/svelte/server';
 import { render } from 'svelte/server';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Larasvelte';
+const appName = import.meta.env.VITE_APP_NAME || 'Anzeigen Generator';
 
 createServer((page) =>
     createInertiaApp({

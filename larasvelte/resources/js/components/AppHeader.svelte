@@ -10,11 +10,10 @@
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import UserMenuContent from '@/components/UserMenuContent.svelte';
     import { getInitials } from '@/hooks/useInitials';
-    import { dashboard } from '@/routes';
     import type { BreadcrumbItem } from '@/types';
-    import { Link, page } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import { cva } from 'class-variance-authority';
-    import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-svelte';
+    import { LayoutGrid, LogOut, Menu, Search, Settings } from 'lucide-svelte';
 
     interface NavItem {
         title: string;
@@ -40,7 +39,7 @@
 
     const mainNavItems: NavItem[] = [
         {
-            title: 'Dashboard',
+            title: 'Create Ad',
             href: '/dashboard',
             icon: LayoutGrid,
         },
@@ -50,18 +49,9 @@
         },
     ];
 
-    const rightNavItems: NavItem[] = [
-        {
-            title: 'Repository',
-            href: 'https://github.com/oseughu/svelte-starter-kit',
-            icon: Folder,
-        },
-        {
-            title: 'Documentation',
-            href: 'https://laravel.com/docs/starter-kits',
-            icon: BookOpen,
-        },
-    ];
+    const handleLogout = () => {
+        router.flushAll();
+    };
 </script>
 
 <div>
@@ -96,21 +86,21 @@
                                 {/each}
                             </nav>
                             <div class="flex flex-col space-y-4">
-                                {#each rightNavItems as item (item.title)}
-                                    <Link href={item.href} class="flex items-center space-x-2 text-sm font-medium">
-                                        {#if item.icon}
-                                            <item.icon class="h-5 w-5" />
-                                        {/if}
-                                        <span>{item.title}</span>
-                                    </Link>
-                                {/each}
+                                <Link href={route('profile.edit')} class="flex items-center space-x-2 text-sm font-medium">
+                                    <Settings class="h-5 w-5" />
+                                    <span>Settings</span>
+                                </Link>
+                                <Link method="post" onclick={handleLogout} href={route('logout')} as="button" class="flex items-center space-x-2 text-left text-sm font-medium">
+                                    <LogOut class="h-5 w-5" />
+                                    <span>Log out</span>
+                                </Link>
                             </div>
                         </div>
                     </SheetContent>
                 </Sheet>
             </div>
 
-            <Link href={dashboard()} class="flex items-center gap-x-2">
+            <Link href={route('dashboard')} class="flex items-center gap-x-2">
                 <AppLogo />
             </Link>
 
@@ -152,23 +142,37 @@
                     </Button>
 
                     <div class="hidden space-x-1 lg:flex">
-                        {#each rightNavItems as item (item.title)}
-                            <TooltipProvider delayDuration={0}>
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                        <Button variant="ghost" size="icon" class="group h-9 w-9 cursor-pointer">
-                                            <Link href={item.href} target="_blank" rel="noopener noreferrer">
-                                                <span class="sr-only">{item.title}</span>
-                                                <item.icon class="size-5 opacity-80 group-hover:opacity-100" />
-                                            </Link>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{item.title}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        {/each}
+                        <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Button variant="ghost" size="icon" class="group h-9 w-9 cursor-pointer">
+                                        <Link href={route('profile.edit')}>
+                                            <span class="sr-only">Settings</span>
+                                            <Settings class="size-5 opacity-80 group-hover:opacity-100" />
+                                        </Link>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Settings</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Button variant="ghost" size="icon" class="group h-9 w-9 cursor-pointer">
+                                        <Link method="post" onclick={handleLogout} href={route('logout')} as="button">
+                                            <span class="sr-only">Log out</span>
+                                            <LogOut class="size-5 opacity-80 group-hover:opacity-100" />
+                                        </Link>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Log out</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
 
