@@ -1,12 +1,11 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "command": "/home/butburg/.config/herd-lite/bin/php",
+            "command": "php",
             "args": [
-                "/home/butburg/repos/kleinanz-laravel-12/larasvelte/artisan",
+                "artisan",
                 "boost:mcp"
-            ],
-            "cwd": "/home/butburg/repos/kleinanz-laravel-12/larasvelte"
+            ]
         }
     }
 }
