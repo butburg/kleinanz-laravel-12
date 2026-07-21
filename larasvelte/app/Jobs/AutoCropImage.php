@@ -28,7 +28,9 @@ class AutoCropImage implements ShouldQueue
     public ?int $timeout = null;
 
     public function __construct(
-        public AdImage $adImage
+        public AdImage $adImage,
+        public ?float $detectionThreshold = null,
+        public ?float $closeupThreshold = null
     ) {
         // Set timeout from config
         $this->timeout = config('ads.auto_crop.timeout', 60);
@@ -36,8 +38,15 @@ class AutoCropImage implements ShouldQueue
 
     public function handle(): void
     {
+        $this->adImage = $this->adImage->fresh() ?? $this->adImage;
+
         // Skip only when cropped paths are present and both files exist on disk.
         if ($this->hasUsableCroppedFiles()) {
+            $this->updateCropMetadata([
+                'crop_status' => 'completed',
+                'crop_error' => null,
+            ]);
+
             Log::info('AutoCropImage: Image already cropped', [
                 'ad_image_id' => $this->adImage->id,
                 'cropped_path' => $this->adImage->cropped_path,
@@ -49,6 +58,11 @@ class AutoCropImage implements ShouldQueue
         // Validate source image exists
         $imagePath = Storage::disk('public')->path($this->adImage->large_path);
         if (! file_exists($imagePath)) {
+            $this->updateCropMetadata([
+                'crop_status' => 'failed',
+                'crop_error' => 'Source image missing',
+            ]);
+
             Log::warning('AutoCropImage: Source image file not found', [
                 'ad_image_id' => $this->adImage->id,
                 'large_path' => $this->adImage->large_path,
@@ -59,12 +73,28 @@ class AutoCropImage implements ShouldQueue
         }
 
         try {
+            $this->updateCropMetadata([
+                'crop_status' => 'processing',
+                'crop_started_at' => now()->toIso8601String(),
+                'crop_error' => null,
+            ]);
+
             $croppedImage = $this->runAutoCrop($imagePath);
 
             if ($croppedImage) {
                 $this->storeAndUpdate($croppedImage);
+            } else {
+                $this->updateCropMetadata([
+                    'crop_status' => 'no_detection',
+                    'crop_error' => null,
+                ]);
             }
         } catch (\Exception $e) {
+            $this->updateCropMetadata([
+                'crop_status' => 'failed',
+                'crop_error' => $e->getMessage(),
+            ]);
+
             Log::error('AutoCropImage: Exception during processing', [
                 'ad_image_id' => $this->adImage->id,
                 'error' => $e->getMessage(),
@@ -97,11 +127,19 @@ class AutoCropImage implements ShouldQueue
         $pythonPackagesPath = (string) config('services.python.packages_path', '');
         $scriptPath = config('ads.auto_crop.script_path');
         $modelPath = config('services.onnx.model_path', storage_path('models/yolov8n-fashionpedia-1.onnx'));
-        $detectionThreshold = config('ads.auto_crop.detection_threshold', 0.7);
-        $closeupThreshold = config('ads.auto_crop.closeup_threshold', 0.70);
+        $detectionThreshold = $this->detectionThreshold ?? config('ads.auto_crop.detection_threshold', 0.7);
+        $closeupThreshold = $this->closeupThreshold ?? config('ads.auto_crop.closeup_threshold', 0.70);
         $marginPercent = config('ads.auto_crop.margin_percent', 2);
 
         $outputImagePath = Storage::disk('public')->path($this->generateCroppedFilename());
+
+        if (! is_string($scriptPath) || ! file_exists($scriptPath)) {
+            throw new \RuntimeException('Auto-crop script not found at: ' . (string) $scriptPath);
+        }
+
+        if (! is_string($modelPath) || ! file_exists($modelPath)) {
+            throw new \RuntimeException('Auto-crop model not found at: ' . (string) $modelPath);
+        }
 
         $command = [
             $pythonPath,
@@ -123,7 +161,7 @@ class AutoCropImage implements ShouldQueue
         if ($pythonPackagesPath !== '') {
             $existingPythonPath = getenv('PYTHONPATH');
             $environment['PYTHONPATH'] = $existingPythonPath
-                ? $pythonPackagesPath.PATH_SEPARATOR.$existingPythonPath
+                ? $pythonPackagesPath . PATH_SEPARATOR . $existingPythonPath
                 : $pythonPackagesPath;
         }
 
@@ -133,13 +171,25 @@ class AutoCropImage implements ShouldQueue
                 ->run($command);
 
             if (! $result->successful()) {
+                $output = $result->output();
+                $decodedOutput = json_decode($output, true);
+                $scriptError = is_array($decodedOutput) ? ($decodedOutput['error'] ?? null) : null;
+
                 Log::error('AutoCropImage: Python script failed', [
                     'ad_image_id' => $this->adImage->id,
                     'exit_code' => $result->exitCode(),
+                    'command' => implode(' ', $command),
+                    'output' => $output,
                     'error_output' => $result->errorOutput(),
+                    'script_error' => $scriptError,
                 ]);
 
-                throw new \RuntimeException('Auto-crop subprocess failed with exit code ' . $result->exitCode());
+                $errorMessage = 'Auto-crop subprocess failed with exit code ' . $result->exitCode();
+                if (is_string($scriptError) && $scriptError !== '') {
+                    $errorMessage .= ': ' . $scriptError;
+                }
+
+                throw new \RuntimeException($errorMessage);
             }
 
             $output = $result->output();
@@ -231,7 +281,11 @@ class AutoCropImage implements ShouldQueue
             'cropped_thumb_path' => $croppedThumbPath,
             'metadata' => array_merge(
                 $this->adImage->metadata ?? [],
-                $croppedImage['metadata']
+                $croppedImage['metadata'],
+                [
+                    'crop_status' => 'completed',
+                    'crop_error' => null,
+                ]
             ),
         ]);
 
@@ -297,10 +351,27 @@ class AutoCropImage implements ShouldQueue
      */
     public function failed(\Throwable $e): void
     {
+        $this->updateCropMetadata([
+            'crop_status' => 'failed',
+            'crop_error' => $e->getMessage(),
+        ]);
+
         Log::error('AutoCropImage: Job failed after all retries', [
             'ad_image_id' => $this->adImage->id,
             'attempts' => $this->attempts(),
             'error' => $e->getMessage(),
+            'queue_connection' => config('queue.default'),
+            'queue_worker_hint' => 'Run php artisan queue:work --queue=default -v',
+        ]);
+    }
+
+    private function updateCropMetadata(array $metadata): void
+    {
+        $this->adImage->refresh();
+        $existing = is_array($this->adImage->metadata) ? $this->adImage->metadata : [];
+
+        $this->adImage->update([
+            'metadata' => array_merge($existing, $metadata),
         ]);
     }
 }

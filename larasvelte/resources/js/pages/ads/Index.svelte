@@ -3,6 +3,8 @@
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
+    import { Switch } from '@/components/ui/switch';
+    import InfoIcon from '@lucide/svelte/icons/info';
     import { Form, Link, page, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
 
@@ -92,6 +94,7 @@
     let pendingImages = $state<PendingImage[]>([]);
     let selectedTitleIndex = $state(0);
     let promptValue = $state('');
+    let autoCropEnabled = $state(true);
     let isSubmitting = $state(false);
     let isPreparingImages = $state(false);
 
@@ -287,6 +290,7 @@
         pendingImages.forEach(image => formData.append('images[]', image.file));
         formData.append('prompt_text', promptValue);
         formData.append('title_image_index', String(selectedTitleIndex));
+        formData.append('auto_crop_enabled', autoCropEnabled ? '1' : '0');
         formData.append('status', options?.statuses[0] || 'Entwurf');
         formData.append('_generate', 'true');
 
@@ -368,8 +372,7 @@
         {/if}
 
         {#if isCreateAdPage}
-            <div class="rounded-md border bg-card shadow-sm">
-                <div class="space-y-4 px-4 py-4">
+            <div class="space-y-4 px-4 py-4">
                 <!-- AI Status Warnings -->
                 {#if aiStatus?.use_test_mode}
                     <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
@@ -436,7 +439,7 @@
                         <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
                             {#each pendingImages as image, index (image.id)}
                                 <div class={`rounded-md border p-1 ${selectedTitleIndex === index ? 'border-primary ring-2 ring-primary/40' : 'border-muted'}`}>
-                                    <img src={image.previewUrl} alt={image.file.name} class="h-24 w-full rounded object-cover" />
+                                    <img src={image.previewUrl} alt={image.file.name} class="h-24 w-full rounded bg-muted/20 object-contain" />
                                     <div class="mt-1 truncate text-[11px]">{image.file.name}</div>
                                     <div class="mt-2 flex flex-wrap gap-1">
                                         <Button
@@ -504,6 +507,23 @@
                     </div>
                 {/if}
 
+                <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <Label for="create-auto-crop">Crop to clothing</Label>
+                            <span
+                                class="inline-flex text-muted-foreground"
+                                title="Keeps the clothing item centered in the photo."
+                                aria-label="Keeps the clothing item centered in the photo."
+                            >
+                                <InfoIcon class="size-4" />
+                            </span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Turn off to keep your photos as they are.</p>
+                    </div>
+                    <Switch id="create-auto-crop" bind:checked={autoCropEnabled} aria-label="Auto-crop images" />
+                </div>
+
                 <!-- Prompt Field -->
                 <div class="space-y-2">
                     <Label for="create-prompt">Prompt (optional)</Label>
@@ -528,7 +548,6 @@
                 >
                     Generate Ad
                 </Button>
-                </div>
             </div>
         {:else}
             <h1 class="text-2xl font-semibold">My Ads</h1>
@@ -544,7 +563,7 @@
                                     <img
                                         src={ad.thumbnail_url}
                                         alt={`Thumbnail for ${ad.title}`}
-                                        class="h-[220px] w-full max-w-[220px] rounded-md border object-cover"
+                                        class="h-[220px] w-full max-w-[220px] rounded-md border bg-muted/20 object-contain"
                                         data-test={`ad-thumbnail-${ad.id}`}
                                     />
                                 {/if}

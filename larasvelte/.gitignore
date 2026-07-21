@@ -33,3 +33,5 @@ yarn-error.log
 /.claude
 /venv
 /.venv
+/.venv-crop
+/tests/fixtures/test-image_*

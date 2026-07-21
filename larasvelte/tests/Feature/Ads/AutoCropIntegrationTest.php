@@ -78,3 +78,24 @@ it('does not dispatch auto crop job when disabled', function (): void {
     // Verify job was NOT queued
     Queue::assertNotPushed(AutoCropImage::class);
 });
+
+it('does not dispatch auto crop job when disabled for a create request', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    $response = $this->post(route('ads.store'), [
+        '_generate' => true,
+        'images' => [UploadedFile::fake()->image('test-image.jpg', 500, 500)],
+        'auto_crop_enabled' => false,
+    ]);
+
+    $response->assertRedirect();
+
+    Queue::assertNotPushed(AutoCropImage::class);
+
+    $adImage = $user->ads()->latest('id')->first()?->images()->first();
+
+    expect($adImage)->not->toBeNull();
+    expect($adImage?->use_cropped)->toBeFalse();
+});

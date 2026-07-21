@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\AutoCropImage;
 use App\Models\Ad;
 use App\Models\AdImage;
 use App\Models\User;
@@ -276,6 +277,66 @@ it('allows owner to toggle cropped preference per image', function (): void {
         ->assertRedirect(route('ads.edit', $ad, absolute: false));
 
     expect($image->fresh()?->use_cropped)->toBeTrue();
+});
+
+it('toggles between cropped and original via the crop toggle endpoint when cropped files exist', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create();
+    $image = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/toggle-large.jpg',
+        'large_thumb_path' => 'ads/toggle-large-thumb.jpg',
+        'cropped_path' => 'ads/toggle-cropped.jpg',
+        'cropped_thumb_path' => 'ads/toggle-cropped-thumb.jpg',
+        'use_cropped' => true,
+    ]);
+
+    Storage::disk('public')->put('ads/toggle-large.jpg', 'large-content');
+    Storage::disk('public')->put('ads/toggle-large-thumb.jpg', 'large-thumb-content');
+    Storage::disk('public')->put('ads/toggle-cropped.jpg', 'cropped-content');
+    Storage::disk('public')->put('ads/toggle-cropped-thumb.jpg', 'cropped-thumb-content');
+
+    $this->actingAs($user)
+        ->post(route('ads.images.toggle-crop', [$ad, $image]))
+        ->assertRedirect(route('ads.edit', $ad, absolute: false));
+
+    expect($image->fresh()?->use_cropped)->toBeFalse();
+
+    $this->actingAs($user)
+        ->post(route('ads.images.toggle-crop', [$ad, $image]))
+        ->assertRedirect(route('ads.edit', $ad, absolute: false));
+
+    expect($image->fresh()?->use_cropped)->toBeTrue();
+});
+
+it('starts manual crop with zero threshold via crop toggle endpoint when no cropped files exist', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create();
+    $image = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/manual-large.jpg',
+        'large_thumb_path' => 'ads/manual-large-thumb.jpg',
+        'cropped_path' => null,
+        'cropped_thumb_path' => null,
+        'use_cropped' => false,
+    ]);
+
+    Storage::disk('public')->put('ads/manual-large.jpg', 'large-content');
+    Storage::disk('public')->put('ads/manual-large-thumb.jpg', 'large-thumb-content');
+
+    $this->actingAs($user)
+        ->post(route('ads.images.toggle-crop', [$ad, $image]))
+        ->assertRedirect(route('ads.edit', $ad, absolute: false));
+
+    expect($image->fresh()?->use_cropped)->toBeTrue();
+
+    Queue::assertPushed(AutoCropImage::class, function (AutoCropImage $job) use ($image): bool {
+        return $job->adImage->id === $image->id
+            && $job->detectionThreshold === 0.0
+            && $job->closeupThreshold === 1.0;
+    });
 });
 
 it('downloads original image when use_cropped is disabled even if cropped path exists', function (): void {

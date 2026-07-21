@@ -35,6 +35,10 @@
             original_size?: [number, number] | null;
             cropped_size?: [number, number] | null;
             cropped_at?: string | null;
+            crop_status?: 'queued' | 'processing' | 'completed' | 'failed' | 'no_detection' | null;
+            crop_requested_at?: string | null;
+            crop_started_at?: string | null;
+            crop_error?: string | null;
         } | null;
     };
 
@@ -87,6 +91,7 @@
     let isSubmitting = $state(false);
     let fieldStates = $state<Record<string, 'saved' | 'saving' | 'error'>>({});
     let fieldErrors = $state<Record<string, string>>({});
+    let imageActionState = $state<Record<string, { deleting?: boolean; cropping?: boolean }>>({});
     let saveTimeouts = new Map<string, number>();
 
     $effect(() => {
@@ -215,10 +220,45 @@
         return fieldErrors[fieldName] || '';
     }
 
-    function confirmImageDelete(event: SubmitEvent): void {
+    function setImageActionState(imageId: number, key: 'deleting' | 'cropping', value: boolean): void {
+        const id = String(imageId);
+        imageActionState = {
+            ...imageActionState,
+            [id]: {
+                ...(imageActionState[id] ?? {}),
+                [key]: value,
+            },
+        };
+    }
+
+    function isImageDeleting(imageId: number): boolean {
+        return Boolean(imageActionState[String(imageId)]?.deleting);
+    }
+
+    function isImageCropping(imageId: number): boolean {
+        return Boolean(imageActionState[String(imageId)]?.cropping);
+    }
+
+    function deleteImage(imageId: number): void {
         if (!window.confirm('Please confirm that you want to delete this image.')) {
-            event.preventDefault();
+            return;
         }
+
+        setImageActionState(imageId, 'deleting', true);
+
+        router.delete(route('ads.images.destroy', [ad.id, imageId]), {
+            preserveScroll: true,
+            onFinish: () => setImageActionState(imageId, 'deleting', false),
+        });
+    }
+
+    function toggleCrop(imageId: number): void {
+        setImageActionState(imageId, 'cropping', true);
+
+        router.post(route('ads.images.toggle-crop', [ad.id, imageId]), {}, {
+            preserveScroll: true,
+            onFinish: () => setImageActionState(imageId, 'cropping', false),
+        });
     }
 </script>
 
@@ -268,7 +308,7 @@
                     <div class="grid gap-3 md:grid-cols-2">
                         {#each ad.images as image (image.id)}
                             <div class="space-y-2 rounded-md border p-3">
-                                <img src={image.url} alt={image.original_name} class="h-40 w-full rounded-md object-cover" />
+                                <img src={image.url} alt={image.original_name} class="h-40 w-full rounded-md bg-muted/20 object-contain" />
                                 <p class="text-sm">{image.original_name}</p>
                                 {#if image.is_cropped}
                                     <p class="text-xs font-medium text-green-700">Clothes detected and cropped</p>
@@ -281,16 +321,31 @@
                                     <p class="text-xs text-muted-foreground">
                                         Currently using: {image.use_cropped ? 'Cropped' : 'Original'}
                                     </p>
-
-                                    <Form method="patch" action={route('ads.images.crop-preference', [ad.id, image.id])}>
-                                        <input type="hidden" name="use_cropped" value={image.use_cropped ? '0' : '1'} />
-                                        <Button type="submit" size="sm" variant="outline">
-                                            {image.use_cropped ? 'Use original version' : 'Use cropped version'}
-                                        </Button>
-                                    </Form>
+                                {:else if image.crop_metadata?.crop_status === 'queued' || image.crop_metadata?.crop_status === 'processing' || isImageCropping(image.id)}
+                                    <p class="text-xs font-medium text-blue-700">Cropping in progress...</p>
+                                {:else if image.crop_metadata?.crop_status === 'no_detection'}
+                                    <p class="text-xs text-amber-700">No clothing item detected. You can try crop again.</p>
+                                {:else if image.crop_metadata?.crop_status === 'failed'}
+                                    <p class="text-xs text-red-700">Cropping failed. Please retry.</p>
                                 {:else}
-                                    <p class="text-xs text-amber-700">No crop available yet (processing or no clothing detected)</p>
+                                    <p class="text-xs text-amber-700">No crop available yet. You can apply it now.</p>
                                 {/if}
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isImageCropping(image.id) || isImageDeleting(image.id)}
+                                    onclick={() => toggleCrop(image.id)}
+                                >
+                                    {#if image.crop_metadata?.crop_status === 'queued' || image.crop_metadata?.crop_status === 'processing' || isImageCropping(image.id)}
+                                        Cropping...
+                                    {:else if image.is_cropped}
+                                        {image.use_cropped ? 'Restore original image' : 'Use cropped image'}
+                                    {:else}
+                                        Apply crop now
+                                    {/if}
+                                </Button>
                                 {#if image.is_title}
                                     <p class="text-sm font-medium text-green-700">Title image</p>
                                 {:else}
@@ -298,9 +353,15 @@
                                         <Button type="submit" size="sm">Set as title</Button>
                                     </Form>
                                 {/if}
-                                <Form method="delete" action={route('ads.images.destroy', [ad.id, image.id])} onsubmit={confirmImageDelete}>
-                                    <Button type="submit" size="sm" variant="outline">Delete image</Button>
-                                </Form>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isImageDeleting(image.id) || isImageCropping(image.id)}
+                                    onclick={() => deleteImage(image.id)}
+                                >
+                                    {isImageDeleting(image.id) ? 'Deleting...' : 'Delete image'}
+                                </Button>
                             </div>
                         {/each}
                     </div>

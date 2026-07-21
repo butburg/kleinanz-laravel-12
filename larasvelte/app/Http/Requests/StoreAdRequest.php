@@ -52,6 +52,7 @@ class StoreAdRequest extends FormRequest
             'shipping' => $shippingRules,
             'status' => ['nullable', Rule::in(config('ads.status.options'))],
             'prompt_text' => ['nullable', 'string', 'max:' . config('ads.validation.prompt_max_length')],
+            'auto_crop_enabled' => ['sometimes', 'boolean'],
             'images' => [Rule::requiredIf($isGenerateFlow), 'array', 'max:' . config('ads.image.max_files')],
             'images.*' => [
                 'file',

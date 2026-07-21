@@ -41,9 +41,9 @@ return [
     'auto_crop' => [
         'enabled' => true,
         'method' => 'python_subprocess',
-        'detection_threshold' => 0.7,
-        'closeup_threshold' => 0.80, // Crop only if main clothing item fills less than x area of the image
-        'margin_percent' => 2,
+        'detection_threshold' => 0.20,
+        'closeup_threshold' => 0.95, // Crop only if main clothing item fills less than x area of the image
+        'margin_percent' => 3,
         'script_path' => base_path('scripts/auto_crop.py'),
         'timeout' => 60,
     ],

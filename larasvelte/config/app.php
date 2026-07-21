@@ -41,6 +41,9 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    // Dev-only: auto-login as this user ID when APP_ENV=local (0 = disabled)
+    'dev_auto_login_user_id' => (int) env('DEV_AUTO_LOGIN_USER_ID', 0),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL

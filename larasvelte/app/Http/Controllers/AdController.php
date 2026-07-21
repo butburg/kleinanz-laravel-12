@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -144,6 +145,10 @@ class AdController extends Controller
                 'original_size' => $image->metadata['original_size'] ?? null,
                 'cropped_size' => $image->metadata['cropped_size'] ?? null,
                 'cropped_at' => $image->metadata['cropped_at'] ?? null,
+                'crop_status' => $image->metadata['crop_status'] ?? null,
+                'crop_requested_at' => $image->metadata['crop_requested_at'] ?? null,
+                'crop_started_at' => $image->metadata['crop_started_at'] ?? null,
+                'crop_error' => $image->metadata['crop_error'] ?? null,
             ] : null,
         ];
     }
@@ -189,7 +194,7 @@ class AdController extends Controller
     /**
      * @param  list<UploadedFile>  $files
      */
-    private function appendImages(Ad $ad, array $files, ?int $titleImageIndex = null): void
+    private function appendImages(Ad $ad, array $files, ?int $titleImageIndex = null, bool $autoCropEnabled = true): void
     {
         if ($files === []) {
             return;
@@ -203,13 +208,22 @@ class AdController extends Controller
             $createdImage = $ad->images()->create([
                 ...$variants,
                 'original_name' => $file->getClientOriginalName(),
-                'use_cropped' => true,
+                'use_cropped' => $autoCropEnabled,
                 'is_title' => false,
             ]);
 
             // Dispatch async job to perform auto-crop
-            if (config('ads.auto_crop.enabled', true)) {
+            if ($autoCropEnabled && config('ads.auto_crop.enabled', true)) {
                 AutoCropImage::dispatch($createdImage);
+
+                $createdImage->update([
+                    'metadata' => array_merge($createdImage->metadata ?? [], [
+                        'crop_status' => 'queued',
+                        'crop_requested_at' => now()->toIso8601String(),
+                        'crop_started_at' => null,
+                        'crop_error' => null,
+                    ]),
+                ]);
             }
 
             $createdImageIds[] = $createdImage->id;
@@ -230,6 +244,57 @@ class AdController extends Controller
                 $ad->images()->where('is_title', true)->update(['is_title' => false]);
                 $ad->images()->whereKey($newTitleImageId)->update(['is_title' => true]);
             }
+        }
+
+        if ($autoCropEnabled && config('ads.auto_crop.enabled', true)) {
+            $this->logAutoCropQueueHealth('appendImages', $ad->id, count($createdImageIds));
+        }
+    }
+
+    private function logAutoCropQueueHealth(string $origin, string $adId, int $dispatchedJobs = 1): void
+    {
+        $queueConnection = (string) config('queue.default', 'sync');
+        $queueName = (string) config('queue.connections.database.queue', 'default');
+
+        if ($queueConnection !== 'database') {
+            Log::info('Auto-crop queue dispatch', [
+                'origin' => $origin,
+                'ad_id' => $adId,
+                'connection' => $queueConnection,
+                'dispatched_jobs' => $dispatchedJobs,
+            ]);
+
+            return;
+        }
+
+        try {
+            $jobsTable = (string) config('queue.connections.database.table', 'jobs');
+            $pendingJobs = DB::table($jobsTable)->where('queue', $queueName)->count();
+            $oldestCreatedAt = DB::table($jobsTable)->where('queue', $queueName)->min('created_at');
+            $oldestAgeSeconds = $oldestCreatedAt ? max(0, now()->timestamp - (int) $oldestCreatedAt) : 0;
+
+            $context = [
+                'origin' => $origin,
+                'ad_id' => $adId,
+                'connection' => $queueConnection,
+                'queue' => $queueName,
+                'dispatched_jobs' => $dispatchedJobs,
+                'pending_jobs' => $pendingJobs,
+                'oldest_pending_age_seconds' => $oldestAgeSeconds,
+                'worker_hint' => 'Run php artisan queue:work --queue=' . $queueName,
+            ];
+
+            if ($pendingJobs >= 5 && $oldestAgeSeconds >= 60) {
+                Log::warning('Auto-crop queue backlog suggests worker is not running', $context);
+            } else {
+                Log::info('Auto-crop queue dispatch', $context);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Auto-crop queue health check failed', [
+                'origin' => $origin,
+                'ad_id' => $adId,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -282,10 +347,11 @@ class AdController extends Controller
         }
 
         $titleImageIndex = $request->validated('title_image_index');
+        $autoCropEnabled = $request->boolean('auto_crop_enabled', true);
 
-        $ad = DB::transaction(function () use ($request, $titleImageIndex) {
+        $ad = DB::transaction(function () use ($request, $titleImageIndex, $autoCropEnabled) {
             $payload = [
-                ...$request->safe()->except(['images']),
+                ...$request->safe()->except(['images', 'auto_crop_enabled']),
                 'status' => $request->validated('status') ?? config('ads.status.default'),
             ];
 
@@ -297,7 +363,7 @@ class AdController extends Controller
 
             /** @var list<UploadedFile> $files */
             $files = $request->file('images', []);
-            $this->appendImages($ad, $files, $titleImageIndex);
+            $this->appendImages($ad, $files, $titleImageIndex, $autoCropEnabled);
 
             return $ad;
         });
@@ -319,8 +385,9 @@ class AdController extends Controller
         $shippingOptions = (array) config('ads.validation.shipping_options');
 
         $titleImageIndex = $request->validated('title_image_index');
+        $autoCropEnabled = $request->boolean('auto_crop_enabled', true);
 
-        $ad = DB::transaction(function () use ($request, $files, $status, $conditions, $shippingOptions, $titleImageIndex) {
+        $ad = DB::transaction(function () use ($request, $files, $status, $conditions, $shippingOptions, $titleImageIndex, $autoCropEnabled) {
             $payload = [
                 'title' => 'Generating...',
                 'description' => 'Generating ad content...',
@@ -336,7 +403,7 @@ class AdController extends Controller
             }
 
             $ad = $request->user()->ads()->create($payload);
-            $this->appendImages($ad, $files, $titleImageIndex);
+            $this->appendImages($ad, $files, $titleImageIndex, $autoCropEnabled);
 
             return $ad;
         });
@@ -496,10 +563,7 @@ class AdController extends Controller
         $useCropped = (bool) $validated['use_cropped'];
 
         if ($useCropped) {
-            $croppedAvailable = $adImage->cropped_path
-                && Storage::disk('public')->exists($adImage->cropped_path)
-                && $adImage->cropped_thumb_path
-                && Storage::disk('public')->exists($adImage->cropped_thumb_path);
+            $croppedAvailable = $this->croppedVariantExists($adImage);
 
             if (! $croppedAvailable) {
                 return to_route('ads.edit', $ad)->with('error', 'Cropped version is not available yet for this image.');
@@ -511,6 +575,46 @@ class AdController extends Controller
         ]);
 
         return to_route('ads.edit', $ad)->with('success', 'Image display preference updated.');
+    }
+
+    public function toggleImageCrop(Ad $ad, AdImage $adImage): RedirectResponse
+    {
+        $this->authorize('update', $ad);
+        $this->ensureImageBelongsToAd($ad, $adImage);
+
+        if ($this->croppedVariantExists($adImage)) {
+            $useCropped = ! $adImage->use_cropped;
+            $adImage->update(['use_cropped' => $useCropped]);
+
+            return to_route('ads.edit', $ad)->with(
+                'success',
+                $useCropped ? 'Cropped image activated.' : 'Original image restored.'
+            );
+        }
+
+        // Manual crop runs with threshold 0.0 and closeup threshold 1.0 so it crops whenever a detection is found.
+        $adImage->update([
+            'use_cropped' => true,
+            'metadata' => array_merge($adImage->metadata ?? [], [
+                'crop_status' => 'queued',
+                'crop_requested_at' => now()->toIso8601String(),
+                'crop_started_at' => null,
+                'crop_error' => null,
+            ]),
+        ]);
+
+        AutoCropImage::dispatch($adImage, 0.0, 1.0);
+        $this->logAutoCropQueueHealth('toggleImageCrop', $ad->id);
+
+        return to_route('ads.edit', $ad)->with('success', 'Cropping started. Refresh shortly to see the cropped version.');
+    }
+
+    private function croppedVariantExists(AdImage $adImage): bool
+    {
+        return $adImage->cropped_path
+            && Storage::disk('public')->exists($adImage->cropped_path)
+            && $adImage->cropped_thumb_path
+            && Storage::disk('public')->exists($adImage->cropped_thumb_path);
     }
 
     public function destroyImage(Ad $ad, AdImage $adImage): RedirectResponse

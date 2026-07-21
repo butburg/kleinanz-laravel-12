@@ -49,6 +49,57 @@ class AutoCropError(Exception):
     pass
 
 
+def bbox_iou(box_a: tuple, box_b: tuple) -> float:
+    """Computes IoU between two boxes in xyxy format."""
+    ax1, ay1, ax2, ay2 = box_a
+    bx1, by1, bx2, by2 = box_b
+
+    inter_x1 = max(ax1, bx1)
+    inter_y1 = max(ay1, by1)
+    inter_x2 = min(ax2, bx2)
+    inter_y2 = min(ay2, by2)
+
+    inter_w = max(0, inter_x2 - inter_x1)
+    inter_h = max(0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+    if inter_area == 0:
+        return 0.0
+
+    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)
+    denom = area_a + area_b - inter_area
+    if denom <= 0:
+        return 0.0
+
+    return inter_area / denom
+
+
+def non_max_suppression(
+    detections: list[ClothingDetection],
+    iou_threshold: float = 0.5,
+) -> list[ClothingDetection]:
+    """Applies class-aware NMS, keeping the highest-confidence boxes."""
+    if not detections:
+        return []
+
+    grouped: dict[str, list[ClothingDetection]] = {}
+    for det in detections:
+        grouped.setdefault(det.category, []).append(det)
+
+    kept: list[ClothingDetection] = []
+    for _, class_detections in grouped.items():
+        candidates = sorted(class_detections, key=lambda d: d.confidence, reverse=True)
+        class_kept: list[ClothingDetection] = []
+
+        for candidate in candidates:
+            if all(bbox_iou(candidate.bbox, existing.bbox) < iou_threshold for existing in class_kept):
+                class_kept.append(candidate)
+
+        kept.extend(class_kept)
+
+    return kept
+
+
 def detect_clothing_items(
     image: Image.Image,
     model_path: Path,
@@ -85,34 +136,68 @@ def detect_clothing_items(
         input_name = session.get_inputs()[0].name
         outputs = session.run(None, {input_name: img_tensor})
 
-        # Parse YOLO outputs (typically detection arrays)
-        # Output format: [batch, num_detections, 6] where columns are:
-        # x_center, y_center, width, height, confidence, class_id
-        raw_detections = outputs[0]
+        raw_output = outputs[0]
+        if raw_output.ndim == 3:
+            raw_output = raw_output[0]
+
+        if raw_output.ndim != 2:
+            raise AutoCropError(f"Unsupported output tensor rank: {raw_output.ndim}")
+
+        # Common exported formats:
+        # 1) [num_detections, 6] -> [x, y, w, h, conf, cls]
+        # 2) [channels, anchors] where channels = 4 + num_classes (YOLOv8 ONNX default)
+        if raw_output.shape[1] == 6:
+            predictions = raw_output
+        elif raw_output.shape[0] >= 6 and raw_output.shape[1] > raw_output.shape[0]:
+            transposed = raw_output.T  # [anchors, channels]
+            box_xywh = transposed[:, :4]
+            class_scores = transposed[:, 4:]
+
+            if class_scores.size == 0:
+                return []
+
+            class_ids = np.argmax(class_scores, axis=1)
+            confidences = class_scores[np.arange(class_scores.shape[0]), class_ids]
+            predictions = np.concatenate(
+                [box_xywh, confidences[:, None], class_ids.astype(np.float32)[:, None]],
+                axis=1,
+            )
+        else:
+            raise AutoCropError(
+                f"Unsupported output tensor shape: {raw_output.shape}. "
+                "Expected [N,6] or [C,A] with C>=6."
+            )
 
         detections = []
-        if raw_detections.size > 0:
-            predictions = raw_detections[0]  # First batch
+        if predictions.size > 0:
+            coord_max = float(np.max(predictions[:, :4]))
+            coords_are_normalized = coord_max <= 2.5
 
             for pred in predictions:
                 confidence = float(pred[4])
                 if confidence < detection_threshold:
                     continue
 
-                # Convert from normalized to pixel coordinates
-                scale_w = image.width / 640
-                scale_h = image.height / 640
-
                 x_center, y_center, width, height = pred[:4]
-                x_center *= scale_w
-                y_center *= scale_h
-                width *= scale_w
-                height *= scale_h
+                if coords_are_normalized:
+                    x_center *= image.width
+                    y_center *= image.height
+                    width *= image.width
+                    height *= image.height
+                else:
+                    # Exported detect ONNX models typically emit xywh in 640-space.
+                    x_center *= image.width / 640
+                    y_center *= image.height / 640
+                    width *= image.width / 640
+                    height *= image.height / 640
 
                 x_min = int(max(0, x_center - width / 2))
                 y_min = int(max(0, y_center - height / 2))
                 x_max = int(min(image.width, x_center + width / 2))
                 y_max = int(min(image.height, y_center + height / 2))
+
+                if x_max <= x_min or y_max <= y_min:
+                    continue
 
                 area = (x_max - x_min) * (y_max - y_min)
                 category = f"clothing_{int(pred[5])}"
@@ -124,8 +209,9 @@ def detect_clothing_items(
                     area=area,
                 ))
 
-        # Sort by area (largest first)
-        detections.sort(key=lambda d: d.area, reverse=True)
+        # Remove duplicate overlaps and prioritize larger detections first.
+        detections = non_max_suppression(detections, iou_threshold=0.5)
+        detections.sort(key=lambda d: (d.area, d.confidence), reverse=True)
         return detections
 
     except Exception as e:
@@ -202,12 +288,12 @@ def auto_crop_if_needed(
     detection_threshold: float = 0.7,
     closeup_threshold: float = 0.70,
     margin_percent: int = 2,
-) -> tuple[Image.Image, bool]:
+) -> tuple[Image.Image, bool, dict]:
     """
     Main auto-crop function.
 
     Returns:
-        (processed_image, was_cropped)
+        (processed_image, was_cropped, diagnostics)
     """
     try:
         # Load image
@@ -221,11 +307,29 @@ def auto_crop_if_needed(
         )
 
         if not detections:
-            return image, False
+            return image, False, {
+                'detection_count': 0,
+                'main_confidence': None,
+                'main_coverage': None,
+                'decision_reason': 'no_detection',
+            }
+
+        main_item = detections[0]
+        image_area = image.width * image.height
+        coverage = main_item.area / image_area
+
+        diagnostics = {
+            'detection_count': len(detections),
+            'main_confidence': float(main_item.confidence),
+            'main_coverage': float(coverage),
+            'decision_reason': None,
+        }
 
         # Check if should crop
         if not should_crop(image, detections, closeup_threshold=closeup_threshold):
-            return image, False
+            diagnostics['decision_reason'] = 'already_closeup'
+
+            return image, False, diagnostics
 
         # Crop
         cropped = crop_to_main_item(
@@ -234,7 +338,9 @@ def auto_crop_if_needed(
             margin_percent=margin_percent,
         )
 
-        return cropped, True
+        diagnostics['decision_reason'] = 'cropped'
+
+        return cropped, True, diagnostics
 
     except Exception as e:
         raise AutoCropError(f"Auto-crop failed: {e}")
@@ -260,6 +366,10 @@ def main():
         'was_cropped': False,
         'original_size': None,
         'cropped_size': None,
+        'detection_count': None,
+        'main_confidence': None,
+        'main_coverage': None,
+        'decision_reason': None,
         'error': None,
     }
 
@@ -275,7 +385,7 @@ def main():
         image = Image.open(image_path).convert('RGB')
         result['original_size'] = list(image.size)
 
-        cropped, was_cropped = auto_crop_if_needed(
+        cropped, was_cropped, diagnostics = auto_crop_if_needed(
             image_path,
             model_path,
             detection_threshold=args.detection_threshold,
@@ -285,6 +395,10 @@ def main():
 
         result['was_cropped'] = was_cropped
         result['cropped_size'] = list(cropped.size)
+        result['detection_count'] = diagnostics.get('detection_count')
+        result['main_confidence'] = diagnostics.get('main_confidence')
+        result['main_coverage'] = diagnostics.get('main_coverage')
+        result['decision_reason'] = diagnostics.get('decision_reason')
 
         # Save if requested
         if output_path:

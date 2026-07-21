@@ -63,7 +63,11 @@ cd larasvelte
 bash scripts/setup_auto_crop_dev.sh
 
 # Activate
-source venv/bin/activate
+source .venv-crop/bin/activate
+
+# Ensure model is present in local default path
+mkdir -p storage/models
+# Put yolov8n-fashionpedia-1.onnx in storage/models/
 
 # Verify Python auto-crop script works
 python3 scripts/auto_crop.py --help
@@ -73,10 +77,11 @@ python3 scripts/auto_crop.py --help
 
 ```
 larasvelte/
-  venv/                           # Python virtualenv (git-ignored)
+  .venv-crop/                     # Python virtualenv (git-ignored)
   scripts/
     auto_crop.py                  # Main crop processor
     setup_auto_crop_dev.sh        # Create local virtualenv
+    requirements-auto-crop.txt    # Shared Python dependency list
     test_auto_crop_env.sh         # Test script for SSH
   storage/
     models/
@@ -193,7 +198,7 @@ jobs:
             php artisan config:cache
 
             # Python auto-crop environment (one-time)
-            if [ ! -d "venv" ]; then
+            if [ ! -d ".venv-crop" ]; then
               echo "Setting up auto-crop virtualenv..."
               bash scripts/setup_auto_crop_dev.sh
             else
@@ -218,7 +223,8 @@ AUTO_CROP_DETECTION_THRESHOLD=0.7
 AUTO_CROP_CLOSEUP_THRESHOLD=0.70
 AUTO_CROP_MARGIN_PERCENT=2
 AUTO_CROP_MODEL_PATH=/var/www/kleinanz/storage/models/yolov8n-fashionpedia-1.onnx
-PYTHON_PATH=/usr/bin/python3
+PYTHON_PATH=/var/www/kleinanz/.venv-crop/bin/python
+PYTHON_PACKAGES_PATH=
 QUEUE_CONNECTION=database
 ```
 
@@ -260,10 +266,10 @@ python3 scripts/auto_crop.py /tmp/test_image.jpg --output /tmp/cropped.jpg
 ### Subprocess Errors
 
 If crop job fails with "python3 not found":
-1. Check `PYTHON_PATH` env var matches `which python3` on server
+1. Check `PYTHON_PATH` env var points to `.venv-crop/bin/python` on server
 2. Ensure virtualenv is activated in queue worker:
    ```bash
-   source venv/bin/activate
+  source .venv-crop/bin/activate
    php artisan queue:work
    ```
 

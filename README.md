@@ -25,21 +25,25 @@ composer install
 npm install
 ```
 
-2. **Install project-local Python packages (repo root):**
+2. **Setup local Python runtime for auto-crop:**
 ```bash
-cd ..
-mkdir -p .python-packages
-python3 -m pip install --target .python-packages numpy pillow onnxruntime
-cd larasvelte
+bash scripts/setup_auto_crop_dev.sh
+source .venv-crop/bin/activate
 ```
 
-3. **Configure environment:**
+3. **Put the YOLO model in the default local path:**
+```bash
+mkdir -p storage/models
+# Place yolov8n-fashionpedia-1.onnx in storage/models/
+```
+
+4. **Configure environment:**
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-4. **Setup database:**
+5. **Setup database:**
 ```bash
 touch database/database.sqlite
 php artisan migrate:fresh --seed
@@ -47,7 +51,7 @@ php artisan migrate:fresh --seed
 
 ### Running Locally
 
-You need **two terminal tabs** (`cd larasvelte`):
+You need **three terminal tabs** (`cd larasvelte`):
 
 **Terminal 1 - Laravel Server:**
 ```bash
@@ -60,6 +64,11 @@ Server runs at: `http://localhost:8000`
 npm run dev
 ```
 Vite runs in the background for hot module reloading.
+
+**Terminal 3 - Queue Worker (required for auto-crop):**
+```bash
+php artisan queue:work --queue=default -v
+```
 
 Then open **http://localhost:8000** in your browser.
 
@@ -84,6 +93,21 @@ php artisan migrate            # Run migrations
 php artisan tinker            # Interactive PHP shell
 php artisan queue:work        # Process async jobs
 ```
+
+**Ad-hoc auto-crop tuning (single fixture image):**
+```bash
+php artisan app:crop-fixture-image --detection-threshold=0.65 --closeup-threshold=0.80 --margin-percent=2
+```
+This uses `larasvelte/tests/fixtures/test-image.jpg` as input and writes `larasvelte/tests/fixtures/test-image_cropped.jpg` so you can compare results quickly.
+Useful options to tune behavior: `--detection-threshold` (0..1), `--closeup-threshold` (0..1), `--margin-percent`, `--model=/absolute/path/to/model.onnx`.
+
+**Auto-crop matrix mode (many output images, 0.10 step):**
+```bash
+php artisan app:crop-fixture-image --matrix --detection-min=0.10 --detection-max=0.90 --closeup-min=0.10 --closeup-max=0.90 --step=0.10 --margin-percent=3
+```
+This creates one image per parameter combination, for example:
+`larasvelte/tests/fixtures/test-image_cropped_dt010_ct020_m03.jpg`.
+It also writes a diagnostics report at `larasvelte/tests/fixtures/test-image_cropped_matrix_report.json` with per-run fields like `decision_reason`, `detection_count`, and `main_coverage`.
 
 **Frontend:**
 ```bash
@@ -185,9 +209,17 @@ npm install
 
 **Auto-crop Python dependencies missing?**
 ```bash
-cd /home/butburg/repos/kleinanz-laravel-12
-mkdir -p .python-packages
-python3 -m pip install --target .python-packages numpy pillow onnxruntime
+cd larasvelte
+bash scripts/setup_auto_crop_dev.sh
+source .venv-crop/bin/activate
+php artisan config:clear
+```
+
+**Auto-crop model file missing?**
+```bash
+cd larasvelte
+ls -lh storage/models/yolov8n-fashionpedia-1.onnx
+grep '^AUTO_CROP_MODEL_PATH=' .env
 ```
 
 **Port 8000 already in use?**
