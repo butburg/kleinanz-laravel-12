@@ -46,5 +46,7 @@ return [
         'margin_percent' => 3,
         'script_path' => base_path('scripts/auto_crop.py'),
         'timeout' => 60,
+        'queue_stale_after_seconds' => 90,
+        'queue_stuck_after_seconds' => 300,
     ],
 ];

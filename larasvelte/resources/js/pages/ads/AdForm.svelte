@@ -39,6 +39,9 @@
             crop_requested_at?: string | null;
             crop_started_at?: string | null;
             crop_error?: string | null;
+            crop_pending_seconds?: number | null;
+            is_queue_stale?: boolean;
+            is_queue_stuck?: boolean;
         } | null;
     };
 
@@ -260,6 +263,20 @@
             onFinish: () => setImageActionState(imageId, 'cropping', false),
         });
     }
+
+    function formatSeconds(value: number | null | undefined): string {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return 'unknown duration';
+        }
+
+        if (value < 60) {
+            return `${value}s`;
+        }
+
+        const minutes = Math.floor(value / 60);
+        const seconds = value % 60;
+        return `${minutes}m ${seconds}s`;
+    }
 </script>
 
 <svelte:head>
@@ -321,12 +338,27 @@
                                     <p class="text-xs text-muted-foreground">
                                         Currently using: {image.use_cropped ? 'Cropped' : 'Original'}
                                     </p>
+                                {:else if image.crop_metadata?.is_queue_stuck}
+                                    <p class="text-xs font-medium text-red-700">
+                                        Cropping appears stuck ({formatSeconds(image.crop_metadata?.crop_pending_seconds)}).
+                                        Queue worker may not be running.
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Ask admin to run: php artisan queue:work --queue=default --stop-when-empty
+                                    </p>
+                                {:else if image.crop_metadata?.is_queue_stale}
+                                    <p class="text-xs font-medium text-amber-700">
+                                        Cropping is taking longer than expected ({formatSeconds(image.crop_metadata?.crop_pending_seconds)}).
+                                    </p>
                                 {:else if image.crop_metadata?.crop_status === 'queued' || image.crop_metadata?.crop_status === 'processing' || isImageCropping(image.id)}
                                     <p class="text-xs font-medium text-blue-700">Cropping in progress...</p>
                                 {:else if image.crop_metadata?.crop_status === 'no_detection'}
                                     <p class="text-xs text-amber-700">No clothing item detected. You can try crop again.</p>
                                 {:else if image.crop_metadata?.crop_status === 'failed'}
                                     <p class="text-xs text-red-700">Cropping failed. Please retry.</p>
+                                    {#if image.crop_metadata?.crop_error}
+                                        <p class="text-xs text-muted-foreground">Error: {image.crop_metadata.crop_error}</p>
+                                    {/if}
                                 {:else}
                                     <p class="text-xs text-amber-700">No crop available yet. You can apply it now.</p>
                                 {/if}

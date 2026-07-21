@@ -41,9 +41,13 @@ it('runs python script with correct arguments', function (): void {
 
     // Verify Python script was called with correct arguments
     Process::assertRan(function ($process) {
-        return str_contains($process->command, config('services.python.path'))
-            && str_contains($process->command, config('ads.auto_crop.script_path'))
-            && str_contains($process->command, Storage::disk('public')->path($this->adImage->large_path));
+        $command = is_array($process->command)
+            ? implode(' ', $process->command)
+            : (string) $process->command;
+
+        return str_contains($command, config('services.python.path'))
+            && str_contains($command, config('ads.auto_crop.script_path'))
+            && str_contains($command, Storage::disk('public')->path($this->adImage->large_path));
     });
 });
 
@@ -153,12 +157,10 @@ it('handles empty python response', function (): void {
 
     $job = new AutoCropImage($this->adImage);
 
-    // Should not crash on empty response
-    $job->handle();
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('empty output');
 
-    // Image should remain unchanged
-    $this->adImage->refresh();
-    expect($this->adImage->cropped_path)->toBeNull();
+    $job->handle();
 });
 
 it('respects max attempts', function (): void {
@@ -179,12 +181,26 @@ it('throws on invalid json response', function (): void {
 
     $job = new AutoCropImage($this->adImage);
 
-    // Should handle invalid JSON gracefully
-    $job->handle();
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('invalid JSON');
 
-    // Image should remain unchanged
-    $this->adImage->refresh();
-    expect($this->adImage->cropped_path)->toBeNull();
+    $job->handle();
+});
+
+it('throws when python script returns success false payload', function (): void {
+    Process::fake([
+        '*auto_crop.py*' => Process::result(output: json_encode([
+            'success' => false,
+            'error' => 'Model file not found',
+        ])),
+    ]);
+
+    $job = new AutoCropImage($this->adImage);
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('Model file not found');
+
+    $job->handle();
 });
 
 it('uses cloth fixtures as realistic source and expected crop assets', function (): void {

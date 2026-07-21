@@ -57,6 +57,20 @@ jobs:
           --exclude '/public/hot' \
           $GITHUB_WORKSPACE/larasvelte/ $SFTP_USERNAME@$SFTP_HOST:kleinanz/
 
+    - name: Upload ONNX model for auto-crop
+      env:
+        SFTP_HOST: ${{ secrets.LIMA_SFTP_HOST }}
+        SFTP_USERNAME: ${{ secrets.LIMA_SFTP_USERNAME }}
+      run: |
+        set -euo pipefail
+        MODEL_SOURCE="$GITHUB_WORKSPACE/no_laravel/migration_source/kleinanz-slim/models/yolov8n-fashionpedia-1.onnx"
+        test -f "$MODEL_SOURCE" || { echo "❌ Missing model in repo: $MODEL_SOURCE"; exit 1; }
+
+        ssh $SFTP_USERNAME@$SFTP_HOST 'mkdir -p kleinanz/storage/models'
+        rsync -r --quiet "$MODEL_SOURCE" \
+          $SFTP_USERNAME@$SFTP_HOST:kleinanz/storage/models/yolov8n-fashionpedia-1.onnx
+        echo "✓ ONNX model synced"
+
     - name: Warn on missing deployment variables
       env:
         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
@@ -95,6 +109,8 @@ jobs:
         upsert_env BOOST_BROWSER_LOGS_WATCHER false
         upsert_env PYTHON_PATH python3
         upsert_env PYTHON_PACKAGES_PATH .python-packages
+        upsert_env AUTO_CROP_ENABLED true
+        upsert_env AUTO_CROP_MODEL_PATH storage/models/yolov8n-fashionpedia-1.onnx
 
         echo "✓ Production .env prepared"
 
@@ -116,6 +132,16 @@ jobs:
         ssh $SFTP_USERNAME@$SFTP_HOST << 'DEPLOY_EOF'
         set -euo pipefail
         cd kleinanz
+        APP_ROOT="$(pwd)"
+
+        upsert_env_server() {
+          key="$1"
+          value="$2"
+          tmp_file="$(mktemp)"
+          grep -v "^${key}=" .env > "$tmp_file" || true
+          printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+          mv "$tmp_file" .env
+        }
 
         PHP_BIN=/opt/lima-php/8.4/bin/php
 
@@ -133,6 +159,17 @@ jobs:
         chmod -R u+rwX bootstrap/cache storage
         test -d bootstrap/cache || { echo "❌ bootstrap/cache could not be created"; exit 1; }
         test -w bootstrap/cache || { echo "❌ bootstrap/cache is not writable"; exit 1; }
+
+        echo "▶ Pinning absolute auto-crop env paths in .env..."
+        upsert_env_server PYTHON_PATH python3
+        upsert_env_server PYTHON_PACKAGES_PATH "$APP_ROOT/.python-packages"
+        upsert_env_server AUTO_CROP_MODEL_PATH "$APP_ROOT/storage/models/yolov8n-fashionpedia-1.onnx"
+        upsert_env_server APP_ENV production
+
+        test -f "$APP_ROOT/storage/models/yolov8n-fashionpedia-1.onnx" || {
+          echo "❌ ONNX model missing on server: $APP_ROOT/storage/models/yolov8n-fashionpedia-1.onnx"
+          exit 1
+        }
 
         echo "▶ Installing Composer dependencies..."
         "$PHP_BIN" "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
@@ -160,6 +197,7 @@ jobs:
         "$PHP_BIN" artisan migrate --force
 
         echo "▶ Caching configuration..."
+        "$PHP_BIN" artisan config:clear
         "$PHP_BIN" artisan config:cache
 
         echo "▶ Caching routes..."
@@ -187,7 +225,7 @@ jobs:
             echo "❌ pip is unavailable for python3 on the host"
             exit 1
           }
-          "$PYTHON_BIN" -m pip install --quiet --target "$PYTHON_PACKAGES_DIR" numpy pillow onnxruntime
+          "$PYTHON_BIN" -m pip install --quiet --target "$PYTHON_PACKAGES_DIR" -r scripts/requirements-auto-crop.txt
           PYTHONPATH="$PWD/$PYTHON_PACKAGES_DIR${PYTHONPATH:+:$PYTHONPATH}" \
             "$PYTHON_BIN" -c "import numpy, PIL, onnxruntime" >/dev/null 2>&1 || {
               echo "❌ Python dependencies were installed but cannot be imported"
@@ -195,6 +233,9 @@ jobs:
             }
           echo "✓ Python dependencies installed"
         fi
+
+        echo "▶ One-shot queue drain for pending jobs (shared hosting)..."
+        "$PHP_BIN" artisan queue:work --queue=default --stop-when-empty --tries=3 --timeout=90 --sleep=1 --max-jobs=25 || true
 
         echo "✅ Deployment completed successfully!"
         DEPLOY_EOF

@@ -127,6 +127,16 @@ class AdController extends Controller
             && Storage::disk('public')->exists($image->cropped_path);
         $usingCropped = $image->use_cropped && $croppedExists;
         $thumbPath = ($image->use_cropped && $croppedThumbExists) ? $image->cropped_thumb_path : $image->large_thumb_path;
+        $metadata = is_array($image->metadata) ? $image->metadata : [];
+        $cropStatus = $metadata['crop_status'] ?? null;
+        $cropRequestedAt = $metadata['crop_requested_at'] ?? null;
+        $cropStartedAt = $metadata['crop_started_at'] ?? null;
+        $cropPendingSeconds = $this->cropPendingSeconds($cropRequestedAt, $cropStartedAt);
+        $queueStaleAfter = (int) config('ads.auto_crop.queue_stale_after_seconds', 90);
+        $queueStuckAfter = (int) config('ads.auto_crop.queue_stuck_after_seconds', 300);
+        $isQueueState = in_array($cropStatus, ['queued', 'processing'], true);
+        $isQueueStale = $isQueueState && $cropPendingSeconds !== null && $cropPendingSeconds >= $queueStaleAfter;
+        $isQueueStuck = $isQueueState && $cropPendingSeconds !== null && $cropPendingSeconds >= $queueStuckAfter;
 
         return [
             'id' => $image->id,
@@ -142,15 +152,31 @@ class AdController extends Controller
             'is_cropped' => $croppedExists,
             'use_cropped' => $usingCropped,
             'crop_metadata' => $image->metadata ? [
-                'original_size' => $image->metadata['original_size'] ?? null,
-                'cropped_size' => $image->metadata['cropped_size'] ?? null,
-                'cropped_at' => $image->metadata['cropped_at'] ?? null,
-                'crop_status' => $image->metadata['crop_status'] ?? null,
-                'crop_requested_at' => $image->metadata['crop_requested_at'] ?? null,
-                'crop_started_at' => $image->metadata['crop_started_at'] ?? null,
-                'crop_error' => $image->metadata['crop_error'] ?? null,
+                'original_size' => $metadata['original_size'] ?? null,
+                'cropped_size' => $metadata['cropped_size'] ?? null,
+                'cropped_at' => $metadata['cropped_at'] ?? null,
+                'crop_status' => $cropStatus,
+                'crop_requested_at' => $cropRequestedAt,
+                'crop_started_at' => $cropStartedAt,
+                'crop_error' => $metadata['crop_error'] ?? null,
+                'crop_pending_seconds' => $cropPendingSeconds,
+                'is_queue_stale' => $isQueueStale,
+                'is_queue_stuck' => $isQueueStuck,
             ] : null,
         ];
+    }
+
+    private function cropPendingSeconds(mixed $cropRequestedAt, mixed $cropStartedAt): ?int
+    {
+        $reference = is_string($cropStartedAt) && $cropStartedAt !== ''
+            ? strtotime($cropStartedAt)
+            : (is_string($cropRequestedAt) && $cropRequestedAt !== '' ? strtotime($cropRequestedAt) : false);
+
+        if ($reference === false) {
+            return null;
+        }
+
+        return max(0, now()->timestamp - $reference);
     }
 
     /**

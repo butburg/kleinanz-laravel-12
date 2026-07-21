@@ -119,7 +119,7 @@ class AutoCropImage implements ShouldQueue
     /**
      * Run the auto-crop Python script and return the result.
      *
-     * @return array|null Array with cropped result or null if script failed
+     * @return array|null Array with cropped result or null when no crop is needed
      */
     private function runAutoCrop(string $imagePath): ?array
     {
@@ -140,6 +140,17 @@ class AutoCropImage implements ShouldQueue
         if (! is_string($modelPath) || ! file_exists($modelPath)) {
             throw new \RuntimeException('Auto-crop model not found at: ' . (string) $modelPath);
         }
+
+        Log::info('AutoCropImage: Starting Python crop process', [
+            'ad_image_id' => $this->adImage->id,
+            'python_path' => $pythonPath,
+            'python_packages_path' => $pythonPackagesPath,
+            'script_path' => $scriptPath,
+            'model_path' => $modelPath,
+            'image_path' => $imagePath,
+            'output_image_path' => $outputImagePath,
+            'timeout_seconds' => $this->timeout,
+        ]);
 
         $command = [
             $pythonPath,
@@ -194,31 +205,25 @@ class AutoCropImage implements ShouldQueue
 
             $output = $result->output();
             if (empty(trim($output))) {
-                Log::warning('AutoCropImage: Empty response from Python script', [
-                    'ad_image_id' => $this->adImage->id,
-                ]);
-
-                return null;
+                throw new \RuntimeException('Auto-crop subprocess returned empty output.');
             }
 
             $response = json_decode($output, true);
             if (! is_array($response)) {
-                Log::warning('AutoCropImage: Invalid JSON response from Python script', [
-                    'ad_image_id' => $this->adImage->id,
-                    'output' => $output,
-                ]);
-
-                return null;
+                throw new \RuntimeException('Auto-crop subprocess returned invalid JSON: ' . trim($output));
             }
 
             // Check for errors in the response
             if (! ($response['success'] ?? false)) {
-                Log::warning('AutoCropImage: Python script returned success=false', [
+                $scriptError = trim((string) ($response['error'] ?? 'Unknown error'));
+
+                Log::error('AutoCropImage: Python script returned success=false', [
                     'ad_image_id' => $this->adImage->id,
-                    'error' => $response['error'] ?? 'Unknown error',
+                    'error' => $scriptError,
+                    'response' => $response,
                 ]);
 
-                return null;
+                throw new \RuntimeException('Auto-crop script failed: ' . $scriptError);
             }
 
             // Only return if image was actually cropped
