@@ -1,5 +1,22 @@
 <?php
 
+$resolveProjectPath = static function (?string $path, string $default): string {
+    $candidate = $path;
+
+    if ($candidate === null || $candidate === '') {
+        return $default;
+    }
+
+    $isAbsolute = str_starts_with($candidate, '/')
+        || preg_match('/^[A-Za-z]:[\\\\\\/]/', $candidate) === 1;
+
+    if ($isAbsolute) {
+        return $candidate;
+    }
+
+    return base_path($candidate);
+};
+
 return [
 
     /*
@@ -41,12 +58,18 @@ return [
     ],
 
     'onnx' => [
-        'model_path' => env('AUTO_CROP_MODEL_PATH', storage_path('models/yolov8n-fashionpedia-1.onnx')),
+        'model_path' => $resolveProjectPath(
+            env('AUTO_CROP_MODEL_PATH'),
+            storage_path('models/yolov8n-fashionpedia-1.onnx')
+        ),
     ],
 
     'python' => [
-        'path' => env('PYTHON_PATH', 'python3'),
-        'packages_path' => env('PYTHON_PACKAGES_PATH', base_path('../.python-packages')),
+        'path' => $resolveProjectPath(env('PYTHON_PATH'), 'python3'),
+        'packages_path' => $resolveProjectPath(
+            env('PYTHON_PACKAGES_PATH'),
+            base_path('../.python-packages')
+        ),
     ],
 
 ];

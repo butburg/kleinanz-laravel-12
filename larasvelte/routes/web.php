@@ -20,6 +20,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('ads/{ad}/status', [AdController::class, 'updateStatus'])->name('ads.status.update');
     Route::post('ads/{ad}/generate', [AdController::class, 'generate'])->name('ads.generate');
     Route::post('ads/{ad}/images', [AdController::class, 'storeImage'])->name('ads.images.store');
+    Route::get('ads/{ad}/images/status', [AdController::class, 'imageStatus'])->name('ads.images.status');
     Route::patch('ads/{ad}/images/{adImage}/title', [AdController::class, 'setTitleImage'])->name('ads.images.set-title');
     Route::post('ads/{ad}/images/{adImage}/toggle-crop', [AdController::class, 'toggleImageCrop'])->name('ads.images.toggle-crop');
     Route::patch('ads/{ad}/images/{adImage}/crop-preference', [AdController::class, 'updateImageCropPreference'])->name('ads.images.crop-preference');

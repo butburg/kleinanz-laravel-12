@@ -96,6 +96,7 @@
     let fieldErrors = $state<Record<string, string>>({});
     let imageActionState = $state<Record<string, { deleting?: boolean; cropping?: boolean }>>({});
     let saveTimeouts = new Map<string, number>();
+    let adImages = $state<AdImage[]>([]);
     let isRefreshingCropStatus = $state(false);
 
     const CROP_STATUS_POLL_INTERVAL_MS = 3000;
@@ -111,7 +112,41 @@
     });
 
     $effect(() => {
-        const hasPendingCrop = ad.images.some((image) =>
+        adImages = ad.images;
+    });
+
+    async function refreshImageStatuses(): Promise<void> {
+        if (isRefreshingCropStatus) {
+            return;
+        }
+
+        isRefreshingCropStatus = true;
+
+        try {
+            const response = await fetch(route('ads.images.status', ad.id), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json() as { images?: AdImage[] };
+
+            if (Array.isArray(payload.images)) {
+                adImages = payload.images;
+            }
+        } finally {
+            isRefreshingCropStatus = false;
+        }
+    }
+
+    $effect(() => {
+        const hasPendingCrop = adImages.some((image) =>
             image.crop_metadata?.crop_status === 'queued' || image.crop_metadata?.crop_status === 'processing'
         );
 
@@ -120,30 +155,16 @@
         }
 
         const intervalId = window.setInterval(() => {
-            if (isRefreshingCropStatus) {
-                return;
-            }
-
-            isRefreshingCropStatus = true;
-
-            router.reload({
-                only: ['ad'],
-                preserveScroll: true,
-                preserveState: true,
-                onFinish: () => {
-                    isRefreshingCropStatus = false;
-                },
-            });
+            void refreshImageStatuses();
         }, CROP_STATUS_POLL_INTERVAL_MS);
 
         return () => {
             clearInterval(intervalId);
-            isRefreshingCropStatus = false;
         };
     });
 
     // Derived state
-    let hasImages = $derived(ad.images.length > 0);
+    let hasImages = $derived(adImages.length > 0);
     let hasFieldContent = $derived(
         titleValue.trim().length > 0 ||
         descriptionValue.trim().length > 0 ||
@@ -295,6 +316,9 @@
 
         router.post(route('ads.images.toggle-crop', [ad.id, imageId]), {}, {
             preserveScroll: true,
+            onSuccess: () => {
+                void refreshImageStatuses();
+            },
             onFinish: () => setImageActionState(imageId, 'cropping', false),
         });
     }
@@ -354,11 +378,11 @@
                     {/snippet}
                 </Form>
 
-                {#if ad.images.length === 0}
+                {#if adImages.length === 0}
                     <p class="text-sm text-muted-foreground">No images uploaded yet.</p>
                 {:else}
                     <div class="grid gap-3 md:grid-cols-2">
-                        {#each ad.images as image (image.id)}
+                        {#each adImages as image (image.id)}
                             <div class="space-y-2 rounded-md border p-3">
                                 <img src={image.url} alt={image.original_name} class="h-40 w-full rounded-md bg-muted/20 object-contain" />
                                 <p class="text-sm">{image.original_name}</p>
@@ -375,11 +399,10 @@
                                     </p>
                                 {:else if image.crop_metadata?.is_queue_stuck}
                                     <p class="text-xs font-medium text-red-700">
-                                        Cropping appears stuck ({formatSeconds(image.crop_metadata?.crop_pending_seconds)}).
-                                        Queue worker may not be running.
+                                        Cropping appears stalled ({formatSeconds(image.crop_metadata?.crop_pending_seconds)}).
                                     </p>
                                     <p class="text-xs text-muted-foreground">
-                                        Ask admin to run: php artisan queue:work --queue=default --stop-when-empty
+                                        This image may have an older unfinished crop state. Try applying crop again.
                                     </p>
                                 {:else if image.crop_metadata?.is_queue_stale}
                                     <p class="text-xs font-medium text-amber-700">

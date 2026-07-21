@@ -4,15 +4,15 @@ use App\Jobs\AutoCropImage;
 use App\Models\Ad;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     Storage::fake('public');
-    Queue::fake();
+    Bus::fake();
 });
 
-it('dispatches auto crop job when image is stored', function (): void {
+it('dispatches auto crop job synchronously when image is stored', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
 
@@ -29,13 +29,12 @@ it('dispatches auto crop job when image is stored', function (): void {
     // Verify response
     $response->assertRedirect();
 
-    // Verify job was queued for each image
-    Queue::assertPushed(AutoCropImage::class, function ($job) {
+    Bus::assertDispatchedSync(AutoCropImage::class, function ($job) {
         return isset($job->adImage);
     });
 });
 
-it('dispatches multiple auto crop jobs for multiple images', function (): void {
+it('dispatches multiple auto crop jobs synchronously for multiple images', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();
 
@@ -55,8 +54,7 @@ it('dispatches multiple auto crop jobs for multiple images', function (): void {
 
     $response->assertRedirect();
 
-    // Verify correct number of jobs were queued
-    Queue::assertPushed(AutoCropImage::class, 3);
+    Bus::assertDispatchedSync(AutoCropImage::class, 3);
 });
 
 it('does not dispatch auto crop job when disabled', function (): void {
@@ -75,8 +73,7 @@ it('does not dispatch auto crop job when disabled', function (): void {
         'images' => [$file],
     ]);
 
-    // Verify job was NOT queued
-    Queue::assertNotPushed(AutoCropImage::class);
+    Bus::assertNotDispatched(AutoCropImage::class);
 });
 
 it('does not dispatch auto crop job when disabled for a create request', function (): void {
@@ -92,7 +89,7 @@ it('does not dispatch auto crop job when disabled for a create request', functio
 
     $response->assertRedirect();
 
-    Queue::assertNotPushed(AutoCropImage::class);
+    Bus::assertNotDispatched(AutoCropImage::class);
 
     $adImage = $user->ads()->latest('id')->first()?->images()->first();
 

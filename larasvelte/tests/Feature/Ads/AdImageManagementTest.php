@@ -5,11 +5,11 @@ use App\Models\Ad;
 use App\Models\AdImage;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
-    Queue::fake();
+    Bus::fake();
 });
 
 it('stores up to ten images and marks the first image as title on create', function (): void {
@@ -332,11 +332,45 @@ it('starts manual crop with zero threshold via crop toggle endpoint when no crop
 
     expect($image->fresh()?->use_cropped)->toBeTrue();
 
-    Queue::assertPushed(AutoCropImage::class, function (AutoCropImage $job) use ($image): bool {
+    Bus::assertDispatchedSync(AutoCropImage::class, function (AutoCropImage $job) use ($image): bool {
         return $job->adImage->id === $image->id
             && $job->detectionThreshold === 0.0
             && $job->closeupThreshold === 1.0;
     });
+});
+
+it('returns refreshed image status payload for the ad edit screen', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create();
+    $image = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/status-large.jpg',
+        'large_thumb_path' => 'ads/status-large-thumb.jpg',
+        'cropped_path' => 'ads/status-cropped.jpg',
+        'cropped_thumb_path' => 'ads/status-cropped-thumb.jpg',
+        'use_cropped' => true,
+        'metadata' => [
+            'crop_status' => 'completed',
+            'cropped_size' => [673, 843],
+            'cropped_at' => now()->toIso8601String(),
+        ],
+    ]);
+
+    Storage::disk('public')->put('ads/status-large.jpg', 'large-content');
+    Storage::disk('public')->put('ads/status-large-thumb.jpg', 'large-thumb-content');
+    Storage::disk('public')->put('ads/status-cropped.jpg', 'cropped-content');
+    Storage::disk('public')->put('ads/status-cropped-thumb.jpg', 'cropped-thumb-content');
+
+    $response = $this->actingAs($user)->get(route('ads.images.status', $ad));
+
+    $response->assertOk()
+        ->assertJsonPath('images.0.id', $image->id)
+        ->assertJsonPath('images.0.is_cropped', true)
+        ->assertJsonPath('images.0.use_cropped', true)
+        ->assertJsonPath('images.0.crop_metadata.crop_status', 'completed')
+        ->assertJsonPath('images.0.crop_metadata.cropped_size.0', 673)
+        ->assertJsonPath('images.0.crop_metadata.cropped_size.1', 843);
 });
 
 it('downloads original image when use_cropped is disabled even if cropped path exists', function (): void {
