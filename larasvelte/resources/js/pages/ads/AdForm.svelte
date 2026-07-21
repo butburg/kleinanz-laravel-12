@@ -96,6 +96,9 @@
     let fieldErrors = $state<Record<string, string>>({});
     let imageActionState = $state<Record<string, { deleting?: boolean; cropping?: boolean }>>({});
     let saveTimeouts = new Map<string, number>();
+    let isRefreshingCropStatus = $state(false);
+
+    const CROP_STATUS_POLL_INTERVAL_MS = 3000;
 
     $effect(() => {
         titleValue = ad.title;
@@ -105,6 +108,38 @@
         shippingValue = ad.shipping;
         statusValue = ad.status;
         promptValue = ad.prompt_text ?? '';
+    });
+
+    $effect(() => {
+        const hasPendingCrop = ad.images.some((image) =>
+            image.crop_metadata?.crop_status === 'queued' || image.crop_metadata?.crop_status === 'processing'
+        );
+
+        if (!hasPendingCrop) {
+            return;
+        }
+
+        const intervalId = window.setInterval(() => {
+            if (isRefreshingCropStatus) {
+                return;
+            }
+
+            isRefreshingCropStatus = true;
+
+            router.reload({
+                only: ['ad'],
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => {
+                    isRefreshingCropStatus = false;
+                },
+            });
+        }, CROP_STATUS_POLL_INTERVAL_MS);
+
+        return () => {
+            clearInterval(intervalId);
+            isRefreshingCropStatus = false;
+        };
     });
 
     // Derived state
