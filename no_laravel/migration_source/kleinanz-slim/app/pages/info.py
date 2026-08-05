@@ -156,8 +156,8 @@ def info():
     with right:
         st.html(
             """<div>
-<a href="https://www.buymeacoffee.com/butburg" style="cursor: pointer;" target="_blank" rel="noopener">
-    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me an ice cream&emoji=🍦&slug=butburg&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" />
+<a href="https://ko-fi.com/butburg" style="cursor: pointer; display: inline-block; padding: 8px 16px; background-color: #29abe0; color: #ffffff; border-radius: 6px; text-decoration: none; font-family: sans-serif; font-size: 14px;" target="_blank" rel="noopener">
+    Buy me an ice cream 🍦
 </a>
 </div>"""
         )
@@ -168,7 +168,7 @@ def info():
     st.caption("Mehr Seiten und Tools aus dem Weedy Universe findest du hier:")
     st.link_button(
         "Weedy Universe – weitere Projekte",
-        "https://buymeacoffee.com/butburg",
+        "https://ko-fi.com/butburg",
     )
 
     st.divider()
