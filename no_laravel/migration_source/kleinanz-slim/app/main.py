@@ -42,7 +42,7 @@ st.set_page_config(
 st.logo(
     "app/weedyuniverse.png",
     size="large",
-    link="https://buymeacoffee.com/butburg",
+    link="https://ko-fi.com/butburg",
 )
 
 # ------------------ Authenticator config (DB-backed login) ------------------
