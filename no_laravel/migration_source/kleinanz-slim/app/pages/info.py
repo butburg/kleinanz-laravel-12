@@ -157,7 +157,7 @@ def info():
         st.html(
             """<div>
 <a href="https://ko-fi.com/butburg" style="cursor: pointer; display: inline-block; padding: 8px 16px; background-color: #29abe0; color: #ffffff; border-radius: 6px; text-decoration: none; font-family: sans-serif; font-size: 14px;" target="_blank" rel="noopener">
-    🍦 Buy me an ice cream
+    Buy me an ice cream 🍦
 </a>
 </div>"""
         )
