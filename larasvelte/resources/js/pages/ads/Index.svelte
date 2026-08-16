@@ -558,16 +558,16 @@
                 <ul data-test="ads-list">
                     {#each ads.data as ad (ad.id)}
                         <li class="border-b py-4 last:border-b-0">
-                            <div class="flex min-w-0 flex-col gap-3">
+                            <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
                                 {#if ad.thumbnail_url}
                                     <img
                                         src={ad.thumbnail_url}
                                         alt={`Thumbnail for ${ad.title}`}
-                                        class="h-[220px] w-full max-w-[220px] rounded-md border bg-muted/20 object-contain"
+                                        class="h-[220px] w-full max-w-[220px] shrink-0 rounded-md border bg-muted/20 object-contain"
                                         data-test={`ad-thumbnail-${ad.id}`}
                                     />
                                 {/if}
-                                <div class="min-w-0 space-y-2">
+                                <div class="min-w-0 flex-1 space-y-2">
                                     <div class="font-medium">{ad.title}</div>
                                     <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                                         <details class="relative inline-block" data-test={`status-menu-${ad.id}`}>
@@ -650,8 +650,8 @@
                                         {/if}
 
                                         <div class="flex flex-wrap gap-2">
-                                            <Link href={route('ads.edit', ad.id)}>
-                                                <Button size="sm" class="w-full sm:w-auto">Edit ad</Button>
+                                            <Link href={route('ads.edit', ad.id)} class="w-full sm:w-auto">
+                                                <Button size="sm" class="w-full">Edit ad</Button>
                                             </Link>
                                         </div>
                                     </div>

@@ -166,7 +166,7 @@ test('generate button is enabled on edit page when images exist', function (): v
 
     visit("/ads/{$ad->id}/edit")
         ->assertSee('Edit Ad')
-        ->assertButtonEnabled('Generate with AI');
+        ->assertButtonEnabled('Generate Again');
 });
 
 test('debug: check form submission when clicking generate on edit page', function (): void {
@@ -213,7 +213,7 @@ test('debug: check form submission when clicking generate on edit page', functio
             console.log('Form inputs:', Array.from(generateForm.querySelectorAll('input')).map(i => i.name));
         }
 
-        const generateBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Generate with AI'));
+        const generateBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Generate Again'));
         console.log('Generate button exists:', !!generateBtn);
         console.log('Generate button disabled:', generateBtn?.disabled);
 
@@ -221,7 +221,7 @@ test('debug: check form submission when clicking generate on edit page', functio
         console.log('Images in DOM:', images.length);
     ");
 
-    $page->assertSee('Generate with AI');
+    $page->assertSee('Generate Again');
 });
 
 test('debug: browser logs for generate flow', function (): void {
@@ -254,7 +254,7 @@ test('debug: browser logs for generate flow', function (): void {
 
     // Check page loaded properly
     $page->assertSee('Edit Ad')
-        ->assertSee('Generate with AI');
+        ->assertSee('Generate Again');
 
     // Test JavaScript errors using Pest's assertion
     $page->assertNoJavaScriptErrors();

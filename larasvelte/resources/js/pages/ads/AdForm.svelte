@@ -176,7 +176,7 @@
     function onImageSelection(event: Event): void {
         const input = event.currentTarget as HTMLInputElement;
         selectedImages = input.files;
-        selectedImageNames = Array.from(input.files ?? []).map(f => f.name);
+        selectedImageNames = input.files ? Array.from(input.files).map((file) => file.name) : [];
     }
 
     function handleGenerateClick(): void {
@@ -343,11 +343,11 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="space-y-4 px-4 pt-4">
+    <div class="flex flex-col gap-4 px-4 pt-4">
         <h1 class="text-2xl font-semibold">Edit Ad</h1>
 
-        <section class="space-y-3 rounded-md border p-4">
-            <h2 class="text-lg font-medium">Images</h2>
+        <section class="order-2 space-y-3 rounded-md border p-4">
+            <h2 class="text-lg font-medium">Sources</h2>
 
             <!-- Show existing images + upload new -->
             <Form method="post" action={route('ads.images.store', ad.id)} class="space-y-2">
@@ -457,31 +457,55 @@
                     </div>
                 {/if}
 
-            <div class="flex gap-2">
+            <div class="grid gap-3">
+                <div class="grid gap-2">
+                    <div class="flex items-center gap-1">
+                        <Label for="prompt_text">Prompt (optional)</Label>
+                        {#if fieldStates.prompt_text === 'saved'}
+                            <span class="text-sm text-green-600">✓ Saved</span>
+                        {:else if fieldStates.prompt_text === 'saving'}
+                            <span class="text-sm text-yellow-600">Saving...</span>
+                        {/if}
+                    </div>
+                    <textarea
+                        id="prompt_text"
+                        bind:value={promptValue}
+                        onblur={() => autoSaveField('prompt_text', promptValue)}
+                        class="rounded-md border p-2 {getFieldClass('prompt_text')}"
+                        rows="3"
+                    ></textarea>
+                    <div class="text-xs text-muted-foreground">{promptValue.length} / {options.limits.prompt}</div>
+                    {#if getFieldError('prompt_text')}
+                        <p class="text-sm text-red-600">{getFieldError('prompt_text')}</p>
+                    {/if}
+                </div>
+
+                <div>
                 <Dialog open={showGenerateConfirm} onOpenChange={(open) => (showGenerateConfirm = open)}>
                     <DialogContent>
                         <DialogHeader class="space-y-2">
-                            <DialogTitle>Generate Ad Text?</DialogTitle>
+                            <DialogTitle>Generate Ad Text Again?</DialogTitle>
                             <DialogDescription>
-                                Generating will overwrite the title, description, price, and condition with AI-generated content. Continue?
+                                Generating will <strong>overwrite</strong> the title, description, price, condition, and shipping with AI-generated content. Continue?
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter class="gap-2">
                             <DialogClose>
                                 <Button variant="secondary">Cancel</Button>
                             </DialogClose>
-                            <Button onclick={submitForGenerate}>Generate</Button>
+                            <Button onclick={submitForGenerate}>Generate Again</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
                 <Button type="button" onclick={handleGenerateClick} disabled={!canGenerate} variant="outline">
-                    Generate with AI
+                    Generate Again
                 </Button>
+                </div>
             </div>
         </section>
 
-        <section class="space-y-3 rounded-md border p-4">
+        <section class="order-1 space-y-3 rounded-md border p-4">
             <h2 class="text-lg font-medium">Details</h2>
 
             <div class="grid gap-2">
@@ -526,28 +550,6 @@
                 <div class="text-xs text-muted-foreground">{descriptionValue.length} / {options.limits.description}</div>
                 {#if getFieldError('description')}
                     <p class="text-sm text-red-600">{getFieldError('description')}</p>
-                {/if}
-            </div>
-
-            <div class="grid gap-2">
-                <div class="flex items-center gap-1">
-                    <Label for="prompt_text">Prompt (optional)</Label>
-                    {#if fieldStates.prompt_text === 'saved'}
-                        <span class="text-sm text-green-600">✓ Saved</span>
-                    {:else if fieldStates.prompt_text === 'saving'}
-                        <span class="text-sm text-yellow-600">Saving...</span>
-                    {/if}
-                </div>
-                <textarea
-                    id="prompt_text"
-                    bind:value={promptValue}
-                    onblur={() => autoSaveField('prompt_text', promptValue)}
-                    class="rounded-md border p-2 {getFieldClass('prompt_text')}"
-                    rows="3"
-                ></textarea>
-                <div class="text-xs text-muted-foreground">{promptValue.length} / {options.limits.prompt}</div>
-                {#if getFieldError('prompt_text')}
-                    <p class="text-sm text-red-600">{getFieldError('prompt_text')}</p>
                 {/if}
             </div>
 

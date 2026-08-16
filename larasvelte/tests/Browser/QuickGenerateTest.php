@@ -65,8 +65,8 @@ test('generate button works on edit page with images', function (): void {
 
     visit("/ads/{$ad->id}/edit")
         ->assertSee('Edit Ad')
-        ->assertSee('Generate with AI')
-        ->assertButtonEnabled('Generate with AI');
+        ->assertSee('Generate Again')
+        ->assertButtonEnabled('Generate Again');
 });
 
 test('generate form exists on edit page', function (): void {
