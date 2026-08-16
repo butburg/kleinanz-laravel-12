@@ -39,6 +39,23 @@ it('provides ad and options to the edit page', function (): void {
         );
 });
 
+it('provides previous and next ads for edit-page navigation', function (): void {
+    $user = User::factory()->create();
+    $oldestAd = Ad::factory()->for($user)->create(['created_at' => now()->subDays(2)]);
+    $currentAd = Ad::factory()->for($user)->create(['created_at' => now()->subDay()]);
+    $newestAd = Ad::factory()->for($user)->create(['created_at' => now()]);
+    Ad::factory()->create(['created_at' => now()->addDay()]);
+
+    $this->actingAs($user)
+        ->get(route('ads.edit', $currentAd))
+        ->assertOk()
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->where('navigation.previousAdId', $newestAd->id)
+                ->where('navigation.nextAdId', $oldestAd->id)
+        );
+});
+
 it('uses the large thumbnail as the preview url in edit page image payload', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create();

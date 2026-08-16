@@ -34,6 +34,10 @@
 
     interface Props {
         ad: Ad;
+        navigation: {
+            previousAdId: string | null;
+            nextAdId: string | null;
+        };
         options: {
             conditions: string[];
             shipping: string[];
@@ -47,7 +51,7 @@
         };
     }
 
-    let { ad, options }: Props = $props();
+    let { ad, navigation, options }: Props = $props();
 </script>
 
-<AdForm {ad} {options} />
+<AdForm {ad} {navigation} {options} />

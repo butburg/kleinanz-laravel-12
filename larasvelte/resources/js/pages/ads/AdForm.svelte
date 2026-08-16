@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from '@/components/ui/button';
+    import { Button, buttonVariants } from '@/components/ui/button';
     import {
         Dialog,
         DialogClose,
@@ -13,9 +13,9 @@
     import { Label } from '@/components/ui/label';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import type { BreadcrumbItem } from '@/types';
-    import { router } from '@inertiajs/svelte';
-    import { Form } from '@inertiajs/svelte';
+    import { Form, Link, router } from '@inertiajs/svelte';
     import type { BaseFormSnippetProps } from '@/types/forms';
+    import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 
     type AdImage = {
         id: number;
@@ -59,6 +59,10 @@
 
     interface Props {
         ad: Ad;
+        navigation: {
+            previousAdId: string | null;
+            nextAdId: string | null;
+        };
         options: {
             conditions: string[];
             shipping: string[];
@@ -72,7 +76,7 @@
         };
     }
 
-    let { ad, options }: Props = $props();
+    let { ad, navigation, options }: Props = $props();
 
     let breadcrumbs: BreadcrumbItem[] = $derived([
         { title: 'Ads', href: '/ads' },
@@ -331,7 +335,41 @@
 
 <AppLayout {breadcrumbs}>
     <div class="flex flex-col gap-4 px-4 pt-4">
-        <h1 class="text-2xl font-semibold">Edit Ad</h1>
+        <div class="flex items-center justify-between gap-4">
+            <h1 class="text-2xl font-semibold">Edit Ad</h1>
+
+            <div class="flex items-center gap-2">
+                {#if navigation.previousAdId}
+                    <Link
+                        href={route('ads.edit', navigation.previousAdId)}
+                        class={buttonVariants({ variant: 'outline', size: 'icon' })}
+                        aria-label="Previous ad"
+                        title="Previous ad"
+                    >
+                        <ChevronLeft />
+                    </Link>
+                {:else}
+                    <Button variant="outline" size="icon" disabled aria-label="Previous ad" title="Previous ad">
+                        <ChevronLeft />
+                    </Button>
+                {/if}
+
+                {#if navigation.nextAdId}
+                    <Link
+                        href={route('ads.edit', navigation.nextAdId)}
+                        class={buttonVariants({ variant: 'outline', size: 'icon' })}
+                        aria-label="Next ad"
+                        title="Next ad"
+                    >
+                        <ChevronRight />
+                    </Link>
+                {:else}
+                    <Button variant="outline" size="icon" disabled aria-label="Next ad" title="Next ad">
+                        <ChevronRight />
+                    </Button>
+                {/if}
+            </div>
+        </div>
 
         <section class="order-2 space-y-3 rounded-md border p-4">
             <h2 class="text-lg font-medium">Sources</h2>

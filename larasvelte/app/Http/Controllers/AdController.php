@@ -410,9 +410,39 @@ class AdController extends Controller
         return to_route('ads.index')->with('success', 'Ad generated and saved successfully.');
     }
 
-    public function edit(Ad $ad): Response
+    public function edit(Request $request, Ad $ad): Response
     {
         $this->authorize('update', $ad);
+
+        $ads = $request->user()->ads();
+
+        $previousAdId = (clone $ads)
+            ->where(function ($query) use ($ad): void {
+                $query
+                    ->where('created_at', '>', $ad->created_at)
+                    ->orWhere(function ($query) use ($ad): void {
+                        $query
+                            ->where('created_at', $ad->created_at)
+                            ->where('id', '>', $ad->id);
+                    });
+            })
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->value('id');
+
+        $nextAdId = (clone $ads)
+            ->where(function ($query) use ($ad): void {
+                $query
+                    ->where('created_at', '<', $ad->created_at)
+                    ->orWhere(function ($query) use ($ad): void {
+                        $query
+                            ->where('created_at', $ad->created_at)
+                            ->where('id', '<', $ad->id);
+                    });
+            })
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->value('id');
 
         return Inertia::render('ads/Edit', [
             'ad' => [
@@ -422,6 +452,10 @@ class AdController extends Controller
                     ->map(fn(AdImage $image): array => $this->imagePayload($image))
                     ->values()
                     ->all(),
+            ],
+            'navigation' => [
+                'previousAdId' => $previousAdId,
+                'nextAdId' => $nextAdId,
             ],
             'options' => $this->formOptions(),
         ]);
