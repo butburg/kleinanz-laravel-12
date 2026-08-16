@@ -10,18 +10,12 @@ Go to: **GitHub → Settings → Secrets and variables → Actions**
 | `LIMA_SFTP_HOST` | Lima server hostname |
 | `LIMA_SFTP_USERNAME` | Lima SSH username |
 | `LIMA_SSH_PRIVATE_KEY` | Contents of `~/.ssh/deploy_kleinanz` (private key, multi-line) |
-| `KLEINANZ_ENV_VARIABLES` | Contents of your local `larasvelte/.env` (multi-line) |
+| `KLEINANZ_ENV_VARIABLES` | Contents of `larasvelte/.env.production` (multi-line production overrides) |
 
-> `.env` is gitignored so it can't be read from the repo in CI — it must be stored as a secret.
-> The workflow writes it to the server and automatically patches `APP_ENV` → `production`,
-> `APP_URL` → `PRODUCTION_URL`, `PYTHON_PATH=python3`, and `PYTHON_PACKAGES_PATH=.python-packages`.
+> The workflow starts from the committed `larasvelte/.env.example`, then replaces only the keys listed in `KLEINANZ_ENV_VARIABLES`. This keeps shared defaults in one place and prevents the production secret from duplicating the whole file.
+> Every override key must already exist in `.env.example`; deployment fails for an unknown key.
 
-### Variables tab
-| Name | Value |
-|------|-------|
-| `PRODUCTION_URL` | `https://yourdomain.com/kleinanz/public` |
-
-The workflow uses `.env` from the repo as-is (with all DB credentials, OpenAI key etc.) and only overwrites `APP_ENV` → `production`, `APP_URL` → `PRODUCTION_URL`, `PYTHON_PATH=python3`, and `PYTHON_PACKAGES_PATH=.python-packages`.
+Copy `larasvelte/.env.production` into the existing `KLEINANZ_ENV_VARIABLES` GitHub Actions secret. Replace its placeholders with the hoster's database and SMTP credentials before copying it. Keep production-only secrets such as `APP_KEY` in this secret; do not add them to `.env.example`.
 
 ## Mail Delivery
 
