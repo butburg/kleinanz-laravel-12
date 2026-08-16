@@ -14,6 +14,7 @@ class Ad extends Model
     use HasFactory;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     /**
@@ -27,6 +28,7 @@ class Ad extends Model
         'price',
         'condition',
         'shipping',
+        'platform',
         'status',
         'last_online_at',
         'prompt_text',

@@ -55,6 +55,8 @@
                     output_mime?: string;
                 };
             };
+            platforms?: string[];
+            default_platform?: string | null;
         };
         aiStatus?: {
             use_test_mode: boolean;
@@ -97,13 +99,25 @@
     let selectedTitleIndex = $state(0);
     let promptValue = $state('');
     let autoCropEnabled = $state(true);
+    let selectedPlatform = $state('');
     let isSubmitting = $state(false);
     let isPreparingImages = $state(false);
 
     // Derived state
     let imageCount = $derived(pendingImages.length);
     let hasImages = $derived(imageCount > 0);
-    let canGenerate = $derived(hasImages && !isSubmitting && !isPreparingImages);
+    let hasPlatform = $derived(selectedPlatform.trim().length > 0);
+    let canGenerate = $derived(hasImages && hasPlatform && !isSubmitting && !isPreparingImages);
+
+    $effect(() => {
+        if (selectedPlatform || !options?.platforms?.length) {
+            return;
+        }
+
+        selectedPlatform = options.platforms.includes(options.default_platform ?? '')
+            ? options.default_platform ?? ''
+            : options.platforms[0];
+    });
 
     function imageClientConfig() {
         const maxDimension = options?.image?.client?.max_dimension ?? 1000;
@@ -294,6 +308,7 @@
         formData.append('title_image_index', String(selectedTitleIndex));
         formData.append('auto_crop_enabled', autoCropEnabled ? '1' : '0');
         formData.append('status', options?.statuses[0] || 'Entwurf');
+        formData.append('platform', selectedPlatform);
         formData.append('_generate', 'true');
 
         router.post(route('ads.store'), formData, {
@@ -552,6 +567,26 @@
                 </div>
 
                 <!-- Prompt Field -->
+                <div class="space-y-2">
+                    <Label for="create-platform">Platform</Label>
+                    {#if options?.platforms?.length}
+                        <select
+                            id="create-platform"
+                            bind:value={selectedPlatform}
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        >
+                            {#each options.platforms as platform (platform)}
+                                <option value={platform}>{platform}</option>
+                            {/each}
+                        </select>
+                    {:else}
+                        <p class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                            Add a platform and its standard appendix before generating an ad.
+                            <Link href={route('appendices.index')} class="underline">Manage platforms</Link>
+                        </p>
+                    {/if}
+                </div>
+
                 <div class="space-y-2">
                     <Label for="create-prompt">Prompt (optional)</Label>
                     <textarea

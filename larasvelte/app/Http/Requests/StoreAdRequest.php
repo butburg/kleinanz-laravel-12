@@ -24,11 +24,17 @@ class StoreAdRequest extends FormRequest
     {
         $isGenerateFlow = $this->boolean('_generate');
 
-        $titleRules = ['string', 'max:' . config('ads.validation.title_max_length')];
-        $descriptionRules = ['string', 'max:' . config('ads.validation.description_max_length')];
+        $titleRules = ['string', 'max:'.config('ads.validation.title_max_length')];
+        $descriptionRules = ['string', 'max:'.config('ads.validation.description_max_length')];
         $priceRules = ['integer', 'min:0'];
         $conditionRules = [Rule::in(config('ads.validation.conditions'))];
         $shippingRules = [Rule::in(config('ads.validation.shipping_options'))];
+        $platformRules = [
+            'string',
+            'max:50',
+            Rule::exists('appendices', 'platform')
+                ->where('user_id', $this->user()->id),
+        ];
 
         if ($isGenerateFlow) {
             array_unshift($titleRules, 'nullable');
@@ -36,12 +42,14 @@ class StoreAdRequest extends FormRequest
             array_unshift($priceRules, 'nullable');
             array_unshift($conditionRules, 'nullable');
             array_unshift($shippingRules, 'nullable');
+            array_unshift($platformRules, 'required');
         } else {
             array_unshift($titleRules, 'required');
-            array_unshift($descriptionRules, 'required', 'min:' . config('ads.validation.description_min_length'));
+            array_unshift($descriptionRules, 'required', 'min:'.config('ads.validation.description_min_length'));
             array_unshift($priceRules, 'required');
             array_unshift($conditionRules, 'required');
             array_unshift($shippingRules, 'required');
+            array_unshift($platformRules, 'nullable');
         }
 
         return [
@@ -50,14 +58,15 @@ class StoreAdRequest extends FormRequest
             'price' => $priceRules,
             'condition' => $conditionRules,
             'shipping' => $shippingRules,
+            'platform' => $platformRules,
             'status' => ['nullable', Rule::in(config('ads.status.options'))],
-            'prompt_text' => ['nullable', 'string', 'max:' . config('ads.validation.prompt_max_length')],
+            'prompt_text' => ['nullable', 'string', 'max:'.config('ads.validation.prompt_max_length')],
             'auto_crop_enabled' => ['sometimes', 'boolean'],
-            'images' => [Rule::requiredIf($isGenerateFlow), 'array', 'max:' . config('ads.image.max_files')],
+            'images' => [Rule::requiredIf($isGenerateFlow), 'array', 'max:'.config('ads.image.max_files')],
             'images.*' => [
                 'file',
-                'mimes:' . implode(',', config('ads.image.supported_formats')),
-                'max:' . config('ads.image.max_file_kb'),
+                'mimes:'.implode(',', config('ads.image.supported_formats')),
+                'max:'.config('ads.image.max_file_kb'),
             ],
             'title_image_index' => [
                 'nullable',

@@ -2,16 +2,21 @@
 
 use App\Models\Ad;
 use App\Models\AdImage;
+use App\Models\Appendix;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 
 it('passes the prompt through first generation and saves every generated detail', function (): void {
     Storage::fake('public');
 
     $user = User::factory()->create([
         'openai_api_key' => 'test-key',
+    ]);
+    Appendix::factory()->for($user)->create([
+        'platform' => 'Kleinanzeigen',
+        'content' => 'Privatverkauf. Keine Rücknahme.',
     ]);
 
     Http::fake([
@@ -30,6 +35,7 @@ it('passes the prompt through first generation and saves every generated detail'
         ->post(route('ads.store'), [
             '_generate' => true,
             'prompt_text' => 'Blue wool coat with a loose fit',
+            'platform' => 'Kleinanzeigen',
             'auto_crop_enabled' => false,
             'images' => [UploadedFile::fake()->image('coat.jpg')],
         ])
@@ -38,11 +44,12 @@ it('passes the prompt through first generation and saves every generated detail'
     $this->assertDatabaseHas('ads', [
         'user_id' => $user->id,
         'title' => 'First Generated Title',
-        'description' => str_repeat('First generated description. ', 4),
+        'description' => trim(str_repeat('First generated description. ', 4))."\n\nPrivatverkauf. Keine Rücknahme.",
         'price' => 64,
         'condition' => 'Sehr gut',
         'shipping' => 'mittel',
         'prompt_text' => 'Blue wool coat with a loose fit',
+        'platform' => 'Kleinanzeigen',
     ]);
 
     Http::assertSent(fn ($request): bool => str_contains(
@@ -56,7 +63,11 @@ it('uses a mock response when the user has no api key', function (): void {
     Http::fake();
 
     $user = User::factory()->create(['openai_api_key' => null]);
-    $ad = Ad::factory()->for($user)->create();
+    Appendix::factory()->for($user)->create([
+        'platform' => 'Kleinanzeigen',
+        'content' => 'Privatverkauf. Keine Rücknahme.',
+    ]);
+    $ad = Ad::factory()->for($user)->create(['platform' => 'Kleinanzeigen']);
 
     $thumbPath = 'ads/mock-thumb.jpg';
     Storage::disk('public')->put($thumbPath, str_repeat('a', 128));
@@ -100,7 +111,11 @@ it('calls the responses api when the user has an api key', function (): void {
     $user = User::factory()->create([
         'openai_api_key' => env('OPENAI_API_KEY', 'test-key'),
     ]);
-    $ad = Ad::factory()->for($user)->create();
+    Appendix::factory()->for($user)->create([
+        'platform' => 'Kleinanzeigen',
+        'content' => 'Privatverkauf. Keine Rücknahme.',
+    ]);
+    $ad = Ad::factory()->for($user)->create(['platform' => 'Kleinanzeigen']);
 
     $thumbPath = 'ads/api-thumb.jpg';
     Storage::disk('public')->put($thumbPath, str_repeat('b', 128));
@@ -118,7 +133,7 @@ it('calls the responses api when the user has an api key', function (): void {
     $this->assertDatabaseHas('ads', [
         'id' => $ad->id,
         'title' => 'Generated Title',
-        'description' => str_repeat('Valid description. ', 4),
+        'description' => trim(str_repeat('Valid description. ', 4))."\n\nPrivatverkauf. Keine Rücknahme.",
         'condition' => 'Gut',
         'price' => 42,
         'shipping' => 'klein',

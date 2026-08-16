@@ -2,27 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\GenerateAdRequest;
+use App\Http\Requests\PartialUpdateAdRequest;
 use App\Http\Requests\StoreAdImageRequest;
 use App\Http\Requests\StoreAdRequest;
-use App\Http\Requests\PartialUpdateAdRequest;
 use App\Http\Requests\UpdateAdStatusRequest;
-use App\Http\Requests\GenerateAdRequest;
 use App\Jobs\AutoCropImage;
 use App\Models\Ad;
 use App\Models\AdImage;
 use App\Services\TextGenerationException;
 use App\Services\TextGenerationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
+use Intervention\Image\ImageManager;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdController extends Controller
@@ -86,12 +86,12 @@ class AdController extends Controller
     private function storeImageVariants(Ad $ad, UploadedFile $file): array
     {
         $largePath = $file->store("ads/{$ad->id}/large", 'public');
-        $largeThumbPath = "ads/{$ad->id}/large_thumb/" . basename($largePath);
+        $largeThumbPath = "ads/{$ad->id}/large_thumb/".basename($largePath);
 
         // Create proper thumbnail instead of copying full image
         // Use Imagick if available (supports more formats like AVIF), otherwise GD
         try {
-            $driver = extension_loaded('imagick') ? new ImagickDriver() : new GdDriver();
+            $driver = extension_loaded('imagick') ? new ImagickDriver : new GdDriver;
             $manager = new ImageManager($driver);
             $fullImagePath = Storage::disk('public')->path($largePath);
             $image = $manager->read($fullImagePath);
@@ -192,10 +192,10 @@ class AdController extends Controller
         $encodedSegments = array_map('rawurlencode', $segments);
         $encodedPath = implode('/', $encodedSegments);
 
-        return $baseUrl . $encodedPath;
+        return $baseUrl.$encodedPath;
     }
 
-    private function formOptions(): array
+    private function formOptions(Request $request): array
     {
         return [
             'conditions' => config('ads.validation.conditions'),
@@ -214,7 +214,35 @@ class AdController extends Controller
                     'output_mime' => config('ads.image.client.output_mime'),
                 ],
             ],
+            'platforms' => $request->user()
+                ->appendices()
+                ->orderBy('platform')
+                ->pluck('platform')
+                ->all(),
+            'default_platform' => $request->user()
+                ->ads()
+                ->whereNotNull('platform')
+                ->latest()
+                ->value('platform'),
         ];
+    }
+
+    private function appendPlatformAppendix(string $description, ?string $platform, Request $request): string
+    {
+        if ($platform === null) {
+            return trim($description);
+        }
+
+        $appendix = $request->user()
+            ->appendices()
+            ->where('platform', $platform)
+            ->value('content');
+
+        if (! is_string($appendix) || trim($appendix) === '') {
+            return trim($description);
+        }
+
+        return trim($description)."\n\n".trim($appendix);
     }
 
     /**
@@ -285,7 +313,7 @@ class AdController extends Controller
             ->latest()
             ->paginate(12)
             ->withQueryString()
-            ->through(fn(Ad $ad): array => [
+            ->through(fn (Ad $ad): array => [
                 'id' => $ad->id,
                 'title' => $ad->title,
                 'description' => $ad->description,
@@ -295,7 +323,7 @@ class AdController extends Controller
                 ...$this->expiryDetails($ad),
                 'thumbnail_url' => $this->listThumbnailUrl($ad),
                 'images' => $ad->images
-                    ->map(fn(AdImage $image): array => $this->listImageDownloadPayload($ad, $image))
+                    ->map(fn (AdImage $image): array => $this->listImageDownloadPayload($ad, $image))
                     ->values()
                     ->all(),
             ]);
@@ -306,7 +334,7 @@ class AdController extends Controller
         return Inertia::render('ads/Index', [
             'ads' => $ads,
             'statusOptions' => config('ads.status.options'),
-            'options' => $this->formOptions(),
+            'options' => $this->formOptions($request),
             'aiStatus' => [
                 'use_test_mode' => $user->use_test_mode,
                 'has_user_api_key' => $hasUserApiKey,
@@ -370,6 +398,7 @@ class AdController extends Controller
                 'shipping' => (string) ($shippingOptions[0] ?? 'klein'),
                 'status' => $status,
                 'prompt_text' => $request->validated('prompt_text'),
+                'platform' => $request->validated('platform'),
             ];
 
             if ($payload['status'] === 'Online') {
@@ -400,7 +429,11 @@ class AdController extends Controller
 
         $ad->update([
             'title' => $generated['title'],
-            'description' => $generated['description'],
+            'description' => $this->appendPlatformAppendix(
+                $generated['description'],
+                $ad->platform,
+                $request
+            ),
             'price' => $generated['price'],
             'condition' => $generated['condition'],
             'shipping' => $generated['shipping'],
@@ -449,7 +482,7 @@ class AdController extends Controller
                 ...$ad->toArray(),
                 'images' => $ad->images()
                     ->get()
-                    ->map(fn(AdImage $image): array => $this->imagePayload($image))
+                    ->map(fn (AdImage $image): array => $this->imagePayload($image))
                     ->values()
                     ->all(),
             ],
@@ -457,7 +490,7 @@ class AdController extends Controller
                 'previousAdId' => $previousAdId,
                 'nextAdId' => $nextAdId,
             ],
-            'options' => $this->formOptions(),
+            'options' => $this->formOptions($request),
         ]);
     }
 
@@ -496,7 +529,11 @@ class AdController extends Controller
 
         $ad->update([
             'title' => $generated['title'],
-            'description' => $generated['description'],
+            'description' => $this->appendPlatformAppendix(
+                $generated['description'],
+                $ad->platform,
+                $request
+            ),
             'price' => $generated['price'],
             'condition' => $generated['condition'],
             'shipping' => $generated['shipping'],
@@ -540,7 +577,7 @@ class AdController extends Controller
         return response()->json([
             'images' => $ad->images()
                 ->get()
-                ->map(fn(AdImage $image): array => $this->imagePayload($image))
+                ->map(fn (AdImage $image): array => $this->imagePayload($image))
                 ->values()
                 ->all(),
         ]);
