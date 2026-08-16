@@ -4,18 +4,19 @@
     import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
     import { type NavItem } from '@/types';
     import { Link, router } from '@inertiajs/svelte';
-    import { LayoutGrid, LogOut, Settings } from 'lucide-svelte';
+    import { FilePlus2, LayoutList, LogOut, Settings } from 'lucide-svelte';
     import AppLogo from './AppLogo.svelte';
 
     const mainNavItems: NavItem[] = [
         {
             title: 'Create Ad',
             href: '/dashboard',
-            icon: LayoutGrid,
+            icon: FilePlus2,
         },
         {
-            title: 'Ads',
+            title: 'Show Ads',
             href: '/ads',
+            icon: LayoutList,
         },
     ];
 

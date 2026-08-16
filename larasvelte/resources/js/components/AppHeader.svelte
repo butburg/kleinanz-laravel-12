@@ -13,7 +13,7 @@
     import type { BreadcrumbItem } from '@/types';
     import { Link, page, router } from '@inertiajs/svelte';
     import { cva } from 'class-variance-authority';
-    import { LayoutGrid, LogOut, Menu, Search, Settings } from 'lucide-svelte';
+    import { FilePlus2, LayoutList, LogOut, Menu, Search, Settings } from 'lucide-svelte';
 
     interface NavItem {
         title: string;
@@ -41,11 +41,12 @@
         {
             title: 'Create Ad',
             href: '/dashboard',
-            icon: LayoutGrid,
+            icon: FilePlus2,
         },
         {
-            title: 'Ads',
+            title: 'Show Ads',
             href: '/ads',
+            icon: LayoutList,
         },
     ];
 

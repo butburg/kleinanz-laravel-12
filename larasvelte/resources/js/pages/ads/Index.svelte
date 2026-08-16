@@ -5,8 +5,9 @@
     import { Label } from '@/components/ui/label';
     import { Switch } from '@/components/ui/switch';
     import InfoIcon from '@lucide/svelte/icons/info';
-    import { Form, Link, page, router } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
+    import { ChevronsUpDown, Copy, Download, Pencil } from 'lucide-svelte';
 
     type Ad = {
         id: number;
@@ -81,6 +82,7 @@
 
     let { ads, statusOptions, options, aiStatus, flash, errors }: Props = $props();
     let copyFeedback = $state<string | null>(null);
+    let updatingStatusIds = $state<number[]>([]);
 
     // Create ad state
     type PendingImage = {
@@ -322,6 +324,31 @@
         if (details) {
             details.open = false;
         }
+    }
+
+    function isUpdatingStatus(adId: number): boolean {
+        return updatingStatusIds.includes(adId);
+    }
+
+    function updateStatus(ad: Ad, status: string, event: MouseEvent): void {
+        if (isUpdatingStatus(ad.id)) {
+            return;
+        }
+
+        closeStatusMenu(event);
+        updatingStatusIds = [...updatingStatusIds, ad.id];
+        const startedAt = performance.now();
+
+        router.patch(route('ads.status.update', ad.id), { status }, {
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => {
+                const remainingTime = Math.max(0, 900 - (performance.now() - startedAt));
+                window.setTimeout(() => {
+                    updatingStatusIds = updatingStatusIds.filter((id) => id !== ad.id);
+                }, remainingTime);
+            },
+        });
     }
 
     async function copyText(text: string, successMessage: string): Promise<void> {
@@ -572,23 +599,24 @@
                                     <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                                         <details class="relative inline-block" data-test={`status-menu-${ad.id}`}>
                                             <summary
-                                                class={`inline-flex cursor-pointer list-none rounded-md border px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(ad.status_color)}`}
+                                                class={`inline-flex items-center cursor-pointer list-none rounded-md border px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(ad.status_color)} ${isUpdatingStatus(ad.id) ? 'status-saving pointer-events-none' : ''}`}
                                                 data-test={`ad-status-${ad.id}`}
+                                                aria-label={`Change status, currently ${ad.status}`}
+                                                aria-busy={isUpdatingStatus(ad.id)}
                                             >
                                                 {ad.status}
+                                                <ChevronsUpDown class="ml-1 size-3" aria-hidden="true" />
                                             </summary>
                                             <div class="absolute z-10 mt-1 min-w-36 rounded-md border bg-background p-1 shadow-md">
                                                 {#each statusOptions as statusOption (statusOption)}
-                                                    <Form method="patch" action={route('ads.status.update', ad.id)}>
-                                                        <input type="hidden" name="status" value={statusOption} />
-                                                        <button
-                                                            type="submit"
-                                                            class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
-                                                            onclick={closeStatusMenu}
-                                                        >
-                                                            {statusOption}
-                                                        </button>
-                                                    </Form>
+                                                    <button
+                                                        type="button"
+                                                        class="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
+                                                        onclick={(event) => updateStatus(ad, statusOption, event)}
+                                                        disabled={isUpdatingStatus(ad.id)}
+                                                    >
+                                                        {statusOption}
+                                                    </button>
                                                 {/each}
                                             </div>
                                         </details>
@@ -618,6 +646,7 @@
                                                     void copyText(ad.title, 'Title copied.');
                                                 }}
                                             >
+                                                <Copy class="mr-2 size-4" aria-hidden="true" />
                                                 Copy title
                                             </Button>
 
@@ -630,6 +659,7 @@
                                                     void copyText(ad.description, 'Description copied.');
                                                 }}
                                             >
+                                                <Copy class="mr-2 size-4" aria-hidden="true" />
                                                 Copy description
                                             </Button>
                                         </div>
@@ -644,6 +674,7 @@
                                                     onclick={() => downloadAllImages(ad.images)}
                                                     data-test={`download-images-${ad.id}`}
                                                 >
+                                                    <Download class="mr-2 size-4" aria-hidden="true" />
                                                     Download all images
                                                 </Button>
                                             </div>
@@ -651,7 +682,10 @@
 
                                         <div class="flex flex-wrap gap-2">
                                             <Link href={route('ads.edit', ad.id)} class="w-full sm:w-auto">
-                                                <Button size="sm" class="w-full">Edit ad</Button>
+                                                <Button size="sm" class="w-full">
+                                                    <Pencil class="mr-2 size-4" aria-hidden="true" />
+                                                    Edit ad
+                                                </Button>
                                             </Link>
                                         </div>
                                     </div>
@@ -683,3 +717,35 @@
         {/if}
     </div>
 </AppLayout>
+
+<style>
+    @keyframes status-background-sweep {
+        from {
+            background-position: 200% 0;
+        }
+
+        to {
+            background-position: -100% 0;
+        }
+    }
+
+    .status-saving {
+        background-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            color-mix(in srgb, currentColor 14%, transparent) 45%,
+            color-mix(in srgb, currentColor 22%, transparent) 50%,
+            color-mix(in srgb, currentColor 14%, transparent) 55%,
+            transparent 100%
+        );
+        background-size: 300% 100%;
+        animation: status-background-sweep 2400ms linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .status-saving {
+            animation: none;
+            background-image: none;
+        }
+    }
+</style>
