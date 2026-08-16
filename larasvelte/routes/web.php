@@ -19,6 +19,7 @@ Route::get('dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin', AdminDashboardController::class)->name('admin.dashboard');
+    Route::delete('admin/users/{user}', [AdminDashboardController::class, 'destroy'])->name('admin.users.destroy');
     Route::get('help', fn () => Inertia::render('Help'))->name('help');
     Route::get('support', [SupportController::class, 'create'])->name('support.create');
     Route::post('support', [SupportController::class, 'store'])->name('support.store');

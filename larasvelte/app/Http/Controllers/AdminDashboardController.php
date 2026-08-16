@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,5 +42,26 @@ class AdminDashboardController extends Controller
         return Inertia::render('AdminDashboard', [
             'users' => $users,
         ]);
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_if($request->user()->is($user), 422, 'You cannot delete your own account from the admin dashboard.');
+
+        $adStorageDirectories = $user->ads()
+            ->pluck('id')
+            ->map(fn (string $adId): string => "ads/{$adId}")
+            ->all();
+
+        DB::transaction(function () use ($user): void {
+            $user->delete();
+        });
+
+        foreach ($adStorageDirectories as $directory) {
+            Storage::disk('public')->deleteDirectory($directory);
+        }
+
+        return to_route('admin.dashboard')->with('success', 'User and all associated data deleted successfully.');
     }
 }
