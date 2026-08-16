@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdController;
+use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -14,6 +15,9 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('support', [SupportController::class, 'create'])->name('support.create');
+    Route::post('support', [SupportController::class, 'store'])->name('support.store');
+
     Route::resource('ads', AdController::class)->except(['show', 'create']);
     Route::patch('ads/{ad}/status', [AdController::class, 'updateStatus'])->name('ads.status.update');
     Route::post('ads/{ad}/generate', [AdController::class, 'generate'])->name('ads.generate');
@@ -26,4 +30,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('ads/{ad}/images/{adImage}', [AdController::class, 'destroyImage'])->name('ads.images.destroy');
 });
 
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';
