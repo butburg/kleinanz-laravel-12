@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Throwable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
+    public bool $pendingRegistrationVerification = false;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
@@ -61,5 +64,22 @@ class User extends Authenticatable implements MustVerifyEmail
     public function ads(): HasMany
     {
         return $this->hasMany(Ad::class);
+    }
+
+    /**
+     * Send verification mail and remove registrations when delivery fails.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        try {
+            parent::sendEmailVerificationNotification();
+            $this->pendingRegistrationVerification = false;
+        } catch (Throwable $exception) {
+            if ($this->pendingRegistrationVerification) {
+                $this->delete();
+            }
+
+            throw $exception;
+        }
     }
 }

@@ -22,7 +22,7 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
-test('unverified users cannot authenticate using the login screen', function () {
+test('unverified users authenticate and are sent to email verification', function () {
     $user = User::factory()->unverified()->create();
 
     $response = $this->post(route('login'), [
@@ -30,8 +30,11 @@ test('unverified users cannot authenticate using the login screen', function () 
         'password' => 'password',
     ]);
 
-    $this->assertGuest();
-    $response->assertSessionHasErrors('email');
+    $this->assertAuthenticatedAs($user);
+    $response->assertRedirect(route('dashboard', absolute: false));
+
+    $this->get(route('dashboard'))
+        ->assertRedirect(route('verification.notice'));
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {

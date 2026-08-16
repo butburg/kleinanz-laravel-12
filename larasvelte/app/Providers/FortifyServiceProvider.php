@@ -46,14 +46,14 @@ class FortifyServiceProvider extends ServiceProvider
     }
 
     /**
-     * Require email verification before a user can log in.
+     * Authenticate credentials; the verified middleware protects the app.
      */
     private function configureAuthentication(): void
     {
         Fortify::authenticateUsing(function (Request $request): ?User {
             $user = User::query()->where('email', $request->string('email'))->first();
 
-            if ($user && $user->hasVerifiedEmail() && Hash::check($request->string('password'), $user->password)) {
+            if ($user && Hash::check($request->string('password'), $user->password)) {
                 return $user;
             }
 
@@ -83,6 +83,7 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
             'status' => $request->session()->get('status'),
+            'verificationExpiresInHours' => (int) ceil(config('auth.verification.expire') / 60),
         ]));
 
         Fortify::registerView(fn () => Inertia::render('auth/Register'));
@@ -105,6 +106,10 @@ class FortifyServiceProvider extends ServiceProvider
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
+        });
+
+        RateLimiter::for('verification', function (Request $request) {
+            return Limit::perSecond(1, 30)->by($request->user()->getAuthIdentifier());
         });
     }
 }
