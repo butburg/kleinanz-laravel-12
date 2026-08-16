@@ -20,7 +20,7 @@
     <AppContent variant="sidebar" class="overflow-x-hidden">
         <div class="mx-auto flex min-h-full w-full max-w-7xl flex-1 flex-col">
             <AppSidebarHeader {breadcrumbs} />
-            <div class="flex-1">
+            <div class="flex-1 pt-16 md:pt-0">
                 {@render children?.()}
             </div>
             <AppFooter />

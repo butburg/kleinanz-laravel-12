@@ -334,7 +334,7 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="flex flex-col gap-4 px-4 pt-4">
+    <div class="flex flex-col gap-4 px-4 pt-4 pb-8">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-2xl font-semibold">Edit Ad</h1>
 

@@ -43,7 +43,7 @@
     <Heading title="Settings" description="Manage your profile and account settings" />
 
     <div class="flex flex-col lg:flex-row lg:space-x-12">
-        <aside class="w-full max-w-xl lg:w-48">
+        <aside class="w-full max-w-xl lg:w-30 lg:shrink-0">
             <nav class="flex flex-col space-x-0 space-y-1">
                 {#each sidebarNavItems as item (item.href)}
                     <Link href={item.href}>

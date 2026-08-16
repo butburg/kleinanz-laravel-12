@@ -385,7 +385,7 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="space-y-4 px-4 pt-4">
+    <div class="space-y-4 px-4 pt-4 pb-8">
         {#if flash?.success}
             <div class="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800" data-test="flash-success">
                 {flash.success}
@@ -698,9 +698,9 @@
                     {/each}
                 </ul>
 
-                <div class="mt-2 flex items-center justify-between">
+                <div class="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
                     <div class="text-xs text-muted-foreground">Page {ads.current_page} of {ads.last_page}</div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-3">
                         {#if ads.prev_page_url}
                             <Link href={ads.prev_page_url}>
                                 <Button size="sm" variant="outline">Previous</Button>
