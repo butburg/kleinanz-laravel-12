@@ -29,8 +29,7 @@
 
 <AppLayout breadcrumbs={breadcrumbItems}>
     <div class="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
-        <HeadingSmall title="Support" description="Send me a message if you need help. You can send up to 5 messages per day." />
-
+        <HeadingSmall title="Support" description="Send me a message if you need help, have feedback, or want to report a bug. You can send up to five messages per day."/>
         <Form method="post" action={route('support.store')} resetOnSuccess class="space-y-6">
             {#snippet children({ errors, processing, recentlySuccessful }: SupportFormSnippetProps)}
                 <div class="grid gap-2">
