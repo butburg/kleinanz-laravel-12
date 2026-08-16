@@ -4,7 +4,7 @@
     import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
     import { type NavItem } from '@/types';
     import { Link, router } from '@inertiajs/svelte';
-    import { CircleHelp, FilePlus2, LayoutList, LogOut, Settings } from 'lucide-svelte';
+    import { CircleHelp, FilePlus2, FileText, LayoutList, LogOut, Settings } from 'lucide-svelte';
     import AppLogo from './AppLogo.svelte';
 
     const mainNavItems: NavItem[] = [
@@ -44,6 +44,14 @@
 
     <SidebarFooter>
         <SidebarMenu class="mt-auto">
+            <SidebarMenuItem>
+                <SidebarMenuButton class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100">
+                    <Link href={route('appendices.index')} class="flex items-center gap-2 w-full">
+                        <FileText class="h-4 w-4 shrink-0" />
+                        <span>Platforms</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100">
                     <Link href={route('support.create')} class="flex items-center gap-2 w-full">

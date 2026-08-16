@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Throwable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Throwable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -64,6 +64,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function ads(): HasMany
     {
         return $this->hasMany(Ad::class);
+    }
+
+    /**
+     * @return HasMany<Appendix, $this>
+     */
+    public function appendices(): HasMany
+    {
+        return $this->hasMany(Appendix::class);
     }
 
     /**

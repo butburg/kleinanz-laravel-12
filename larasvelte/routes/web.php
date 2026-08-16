@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AdController;
+use App\Http\Controllers\AppendixController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return auth()->check()
@@ -17,6 +19,9 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('support', [SupportController::class, 'create'])->name('support.create');
     Route::post('support', [SupportController::class, 'store'])->name('support.store');
+    Route::resource('appendices', AppendixController::class)
+        ->parameters(['appendices' => 'appendix'])
+        ->only(['index', 'store', 'update', 'destroy']);
 
     Route::resource('ads', AdController::class)->except(['show', 'create']);
     Route::patch('ads/{ad}/status', [AdController::class, 'updateStatus'])->name('ads.status.update');
