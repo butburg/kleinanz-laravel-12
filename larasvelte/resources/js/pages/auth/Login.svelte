@@ -25,10 +25,13 @@
     <title>Login</title>
 </svelte:head>
 
-<AuthBase title={`Log in to ${appName}`} description="">
+<AuthBase
+    title={`Log in to ${appName}`}
+    description="Create, organize, and prepare your ads for the resale platforms you use."
+>
     <figure class="space-y-2 text-center">
         <img src="/legacy/faust.jpg" alt="Faust" class="mx-auto max-h-56 w-auto rounded-md border" loading="lazy" />
-        <figcaption class="text-sm text-muted-foreground">Und jetzt kommt die riesen Faust</figcaption>
+        <figcaption class="text-sm text-muted-foreground">And then comes the giant fist</figcaption>
     </figure>
 
     <p class="text-center text-sm text-muted-foreground">Enter your email and password below to log in.</p>

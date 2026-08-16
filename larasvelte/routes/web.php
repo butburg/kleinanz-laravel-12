@@ -2,13 +2,11 @@
 
 use App\Http\Controllers\AdController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Laravel\Fortify\Features;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
+    return auth()->check()
+        ? to_route('ads.index')
+        : to_route('login');
 })->name('home');
 
 Route::get('dashboard', function () {

@@ -5,6 +5,8 @@
 
 The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to ensure the best experience when building Laravel applications.
 
+for commands runs like `php artisan` recognize taht the app lives in `larasvelte/`.
+
 ## Foundational Context
 
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
@@ -53,6 +55,15 @@ This project has domain-specific skills available. You MUST activate the relevan
 ## Frontend Bundling
 
 - If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+
+## Ad Edit Autosave
+
+- The ad edit form uses field-level autosave on blur. Each field sends its own PATCH request, so users can move between fields without waiting for a save to finish.
+- Keep the blur debounce short (`100ms` currently). It only coalesces accidental rapid blur events; it must not make field switching feel blocked.
+- Use `preserveState: true` for autosave requests so an Inertia response does not recreate the form while another field is being edited.
+- Do not resynchronize local form values from every incoming `ad` prop. Initialize the local values once; otherwise a response for field A can overwrite unsaved text in field B.
+- Feedback is intentionally visual and field-local: static yellow border while saving, one green border pulse after success, and red border plus validation text on error. Do not add persistent `Saving...`, `Saved`, or checkmark labels.
+- The manual `Save Changes` action is removed because autosave is the source of truth for edit fields.
 
 ## Documentation Files
 
