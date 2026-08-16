@@ -130,6 +130,29 @@ it('calls the responses api when the user has an api key', function (): void {
 
         return str_contains($request->url(), '/responses')
             && ($payload['model'] ?? null) === config('ads.openai.model')
+            && ($payload['text']['format'] ?? null) === [
+                'type' => 'json_schema',
+                'name' => 'generated_ad',
+                'strict' => true,
+                'schema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'title' => ['type' => 'string'],
+                        'description' => ['type' => 'string'],
+                        'condition' => [
+                            'type' => 'string',
+                            'enum' => config('ads.validation.conditions'),
+                        ],
+                        'price' => ['type' => 'integer'],
+                        'shipping' => [
+                            'type' => 'string',
+                            'enum' => config('ads.validation.shipping_options'),
+                        ],
+                    ],
+                    'required' => ['title', 'description', 'condition', 'price', 'shipping'],
+                    'additionalProperties' => false,
+                ],
+            ]
             && str_contains(
                 $payload['input'][1]['content'][0]['text'] ?? '',
                 'Prompt text'

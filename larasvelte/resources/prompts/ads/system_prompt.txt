@@ -21,6 +21,6 @@ Hinweise:
 - Keine Beispiellisten von Optionen in den Feldern (wie "Versand: klein oder mittel").
 - Setzte nie "condition" auf "Neu", wenn Gebrauchsspuren erkennbar sind oder vom Nutzer "gebraucht", "benutzt", "einmal genutzt", "wie neu" erwaehnt werden.
 - Keine erklaerenden Saetze ausserhalb des JSON.
-- Die Antwort muss direkt als Python-JSON dict geparsed werden koennen.
+- Die Antwort muss ein valides JSON-Objekt sein.
 - Gib niemals unvollstaendige Felder zurueck.
 - Generiere nichts wie "Versand moeglich|Privatverkauf|Schliesse jegliche Sachmangelhaftung aus". Dies wird automatisch angehaengt.

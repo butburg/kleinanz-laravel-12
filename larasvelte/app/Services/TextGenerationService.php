@@ -15,6 +15,9 @@ class TextGenerationService
 {
     private const MIN_IMAGE_BYTES = 64;
 
+    /** @var list<string> */
+    private const RESPONSE_FIELDS = ['title', 'description', 'condition', 'price', 'shipping'];
+
     private string $systemPrompt;
     private string $adExamples;
 
@@ -127,6 +130,14 @@ class TextGenerationService
             'temperature' => config('ads.openai.temperature'),
             'max_output_tokens' => config('ads.openai.max_tokens'),
             'store' => false,
+            'text' => [
+                'format' => [
+                    'type' => 'json_schema',
+                    'name' => 'generated_ad',
+                    'strict' => true,
+                    'schema' => $this->responseSchema(),
+                ],
+            ],
         ];
 
         Log::info('TEXT GENERATION: OPENAI REQUEST PAYLOAD', [
@@ -162,10 +173,35 @@ class TextGenerationService
 
         if ($promptText && trim($promptText) !== '') {
             $cleanPrompt = trim($promptText);
-            $parts[] = "Zusatzinformationen des Nutzers (weil z.B. nicht erkennbar im Bild):\n\n\"{$cleanPrompt}\"";
+            $parts[] = "Zusatzinformationen des Nutzers (weil z.B. nicht erkennbar im Bild oder besondere Stil-Wünsche):\n\n\"{$cleanPrompt}\"";
         }
 
         return implode('', $parts);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function responseSchema(): array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'title' => ['type' => 'string'],
+                'description' => ['type' => 'string'],
+                'condition' => [
+                    'type' => 'string',
+                    'enum' => config('ads.validation.conditions'),
+                ],
+                'price' => ['type' => 'integer'],
+                'shipping' => [
+                    'type' => 'string',
+                    'enum' => config('ads.validation.shipping_options'),
+                ],
+            ],
+            'required' => self::RESPONSE_FIELDS,
+            'additionalProperties' => false,
+        ];
     }
 
     /**
