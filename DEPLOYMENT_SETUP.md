@@ -23,6 +23,32 @@ Go to: **GitHub → Settings → Secrets and variables → Actions**
 
 The workflow uses `.env` from the repo as-is (with all DB credentials, OpenAI key etc.) and only overwrites `APP_ENV` → `production`, `APP_URL` → `PRODUCTION_URL`, `PYTHON_PATH=python3`, and `PYTHON_PACKAGES_PATH=.python-packages`.
 
+## Mail Delivery
+
+The local `.env` uses `MAIL_MAILER=log`, which is useful for development because verification and password-reset messages are written to `larasvelte/storage/logs/laravel.log` instead of being sent.
+
+For the hoster, create a mailbox such as `noreply@yourdomain.example` and copy the SMTP values from the hoster's mail settings into the production `.env`:
+
+```env
+MAIL_MAILER=smtp
+MAIL_SCHEME=tls
+MAIL_HOST=smtp.your-hoster.example
+MAIL_PORT=587
+MAIL_USERNAME=noreply@yourdomain.example
+MAIL_PASSWORD=the-mailbox-password
+MAIL_EHLO_DOMAIN=yourdomain.example
+MAIL_FROM_ADDRESS=noreply@yourdomain.example
+MAIL_FROM_NAME="Weedy Universe Classifieds"
+```
+
+Use `MAIL_PORT=465` with `MAIL_SCHEME=smtps` if the hoster specifies implicit TLS instead of STARTTLS on port 587. Do not use the mailbox password as the application's password, and never commit the production `.env` or SMTP credentials. After changing mail settings, run `php artisan config:clear` and test both registration verification and password reset. The hoster must also allow outbound SMTP and the sender domain should have its SPF/DKIM records configured.
+
+The scheduler must run every minute in production so unverified accounts can be removed after 24 hours:
+
+```cron
+* * * * * cd /path/to/larasvelte && php artisan schedule:run >> /dev/null 2>&1
+```
+
 ---
 
 ## SSH Key Setup (one-time)

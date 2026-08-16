@@ -15,6 +15,10 @@
 </svelte:head>
 
 <AuthBase title="Create an account" description="Enter your details below to create your account">
+    <p class="text-center text-sm text-muted-foreground">
+        Your email is only used to confirm your account, reset your password, or send important service updates. Your email will never be used for advertising or shared with third parties..
+    </p>
+
     <Form method="post" action={route('register')} resetOnSuccess={['password', 'password_confirmation']} class="flex flex-col gap-6">
         {#snippet children({ errors, processing }: BaseFormSnippetProps)}
             <div class="grid gap-6">
@@ -34,6 +38,7 @@
                     <Label for="password">Password</Label>
                     <Input id="password" name="password" type="password" required tabindex={3} autocomplete="new-password" placeholder="Password" />
                     <InputError message={errors.password} />
+                    <p class="text-xs text-muted-foreground">Use a password generator to create a strong, unique password.</p>
                 </div>
 
                 <div class="grid gap-2">

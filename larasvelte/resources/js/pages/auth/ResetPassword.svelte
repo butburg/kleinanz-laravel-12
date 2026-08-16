@@ -47,6 +47,7 @@
                         placeholder="Password"
                     />
                     <InputError message={errors.password} />
+                    <p class="text-xs text-muted-foreground">Use a password generator to create a strong, unique password.</p>
                 </div>
 
                 <div class="grid gap-2">

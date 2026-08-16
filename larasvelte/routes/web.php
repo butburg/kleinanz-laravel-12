@@ -13,7 +13,7 @@ Route::get('dashboard', function () {
     return app(AdController::class)->index(request());
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('ads', AdController::class)->except(['show', 'create']);
     Route::patch('ads/{ad}/status', [AdController::class, 'updateStatus'])->name('ads.status.update');
     Route::post('ads/{ad}/generate', [AdController::class, 'generate'])->name('ads.generate');
