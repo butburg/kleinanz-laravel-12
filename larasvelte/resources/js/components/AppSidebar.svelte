@@ -4,7 +4,7 @@
     import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
     import { type NavItem } from '@/types';
     import { Link, router } from '@inertiajs/svelte';
-    import { CircleHelp, FilePlus2, FileText, LayoutList, LogOut, Settings } from 'lucide-svelte';
+    import { Bug, CircleHelp, FilePlus2, FileText, LayoutList, LogOut, Settings } from 'lucide-svelte';
     import AppLogo from './AppLogo.svelte';
 
     const mainNavItems: NavItem[] = [
@@ -63,7 +63,7 @@
             <SidebarMenuItem>
                 <SidebarMenuButton class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100">
                     <Link href={route('support.create')} class="flex items-center gap-2 w-full">
-                        <CircleHelp class="h-4 w-4 shrink-0" />
+                        <Bug class="h-4 w-4 shrink-0" />
                         <span>Support</span>
                     </Link>
                 </SidebarMenuButton>
