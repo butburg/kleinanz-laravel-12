@@ -5,8 +5,10 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Throwable;
 
@@ -43,6 +45,15 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'is_admin',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -64,6 +75,28 @@ class User extends Authenticatable implements MustVerifyEmail
     public function ads(): HasMany
     {
         return $this->hasMany(Ad::class);
+    }
+
+    /**
+     * @return HasManyThrough<AdImage, Ad, $this>
+     */
+    public function images(): HasManyThrough
+    {
+        return $this->hasManyThrough(AdImage::class, Ad::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        $adminMail = config('app.admin_mail');
+
+        return is_string($adminMail)
+            && $adminMail !== ''
+            && Str::lower($this->email) === Str::lower($adminMail);
+    }
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
     }
 
     /**

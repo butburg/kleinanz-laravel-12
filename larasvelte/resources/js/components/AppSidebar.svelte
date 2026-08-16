@@ -3,11 +3,13 @@
     import NavUser from '@/components/NavUser.svelte';
     import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
     import { type NavItem } from '@/types';
-    import { Link, router } from '@inertiajs/svelte';
-    import { Bug, CircleHelp, FilePlus2, FileText, LayoutList, LogOut, Settings } from 'lucide-svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
+    import { Bug, CircleHelp, FilePlus2, FileText, LayoutList, LogOut, Settings, ShieldCheck } from 'lucide-svelte';
     import AppLogo from './AppLogo.svelte';
 
-    const mainNavItems: NavItem[] = [
+    let user = $derived($page.props.auth.user);
+
+    const mainNavItems = $derived<NavItem[]>([
         {
             title: 'Create Ad',
             href: '/dashboard',
@@ -18,7 +20,10 @@
             href: '/ads',
             icon: LayoutList,
         },
-    ];
+        ...(user?.is_admin
+            ? [{ title: 'Admin', href: '/admin', icon: ShieldCheck }]
+            : []),
+    ]);
 
     const handleLogout = () => {
         router.flushAll();

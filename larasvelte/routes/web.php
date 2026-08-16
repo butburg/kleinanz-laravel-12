@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AppendixController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,7 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('admin', AdminDashboardController::class)->name('admin.dashboard');
     Route::get('help', fn () => Inertia::render('Help'))->name('help');
     Route::get('support', [SupportController::class, 'create'])->name('support.create');
     Route::post('support', [SupportController::class, 'store'])->name('support.store');

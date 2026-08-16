@@ -13,7 +13,7 @@
     import type { BreadcrumbItem } from '@/types';
     import { Link, page, router } from '@inertiajs/svelte';
     import { cva } from 'class-variance-authority';
-    import { FilePlus2, LayoutList, LogOut, Menu, Search, Settings } from 'lucide-svelte';
+    import { FilePlus2, LayoutList, LogOut, Menu, Search, Settings, ShieldCheck } from 'lucide-svelte';
 
     interface NavItem {
         title: string;
@@ -37,7 +37,7 @@
         `group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-hidden disabled:pointer-events-none disabled:opacity-50 data-active:bg-accent/50 data-[state=open]:bg-accent/50`,
     );
 
-    const mainNavItems: NavItem[] = [
+    const mainNavItems = $derived<NavItem[]>([
         {
             title: 'Create Ad',
             href: '/dashboard',
@@ -48,7 +48,10 @@
             href: '/ads',
             icon: LayoutList,
         },
-    ];
+        ...(user?.is_admin
+            ? [{ title: 'Admin', href: '/admin', icon: ShieldCheck }]
+            : []),
+    ]);
 
     const handleLogout = () => {
         router.flushAll();
