@@ -71,21 +71,23 @@ jobs:
           $SFTP_USERNAME@$SFTP_HOST:kleinanz/storage/models/yolov8n-fashionpedia-1.onnx
         echo "✓ ONNX model synced"
 
-    - name: Warn on missing deployment variables
+    - name: Validate deployment variables
       env:
         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         PRODUCTION_ENV_OVERRIDES: ${{ secrets.KLEINANZ_ENV_VARIABLES }}
       run: |
         if [ -z "${PRODUCTION_URL:-}" ]; then
-          echo "::warning::GitHub Actions variable PRODUCTION_URL is not set. APP_URL will be empty in the production .env."
+          echo "GitHub Actions variable PRODUCTION_URL is required." >&2
+          exit 1
         fi
 
         if [ -z "${PRODUCTION_ENV_OVERRIDES:-}" ]; then
-          echo "::warning::GitHub Actions secret KLEINANZ_ENV_VARIABLES is not set. The workflow cannot build the production .env file."
+          echo "GitHub Actions secret KLEINANZ_ENV_VARIABLES is required." >&2
+          exit 1
         fi
 
     # The secret contains the complete production .env; APP_URL comes from PRODUCTION_URL.
-    - name: Prepare production .env
+    - name: Validate and prepare production .env
       env:
         PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         PRODUCTION_ENV_OVERRIDES: ${{ secrets.KLEINANZ_ENV_VARIABLES }}
@@ -93,7 +95,19 @@ jobs:
         set -euo pipefail
         printf '%s\n' "$PRODUCTION_ENV_OVERRIDES" > .env.production
 
-        app_url_seen=false
+        expected_keys="$(mktemp)"
+        production_keys="$(mktemp)"
+        trap 'rm -f "$expected_keys" "$production_keys"' EXIT
+
+        awk -F= '/^[A-Z][A-Z0-9_]*=/ { print $1 }' "$GITHUB_WORKSPACE/larasvelte/.env.example" > "$expected_keys"
+        awk -F= '/^[A-Z][A-Z0-9_]*=/ { print $1 }' .env.production > "$production_keys"
+
+        if ! diff -u "$expected_keys" "$production_keys"; then
+          echo "KLEINANZ_ENV_VARIABLES must contain every .env.example key in the same order." >&2
+          exit 1
+        fi
+
+        app_url_count=0
         while IFS= read -r override || [ -n "$override" ]; do
           case "$override" in
             ''|'#'*) continue ;;
@@ -107,12 +121,12 @@ jobs:
           esac
 
           if [ "$key" = "APP_URL" ]; then
-            app_url_seen=true
+            app_url_count=$((app_url_count + 1))
           fi
         done <<< "$PRODUCTION_ENV_OVERRIDES"
 
-        if [ "$app_url_seen" != true ]; then
-          echo "Production environment must include an APP_URL line." >&2
+        if [ "$app_url_count" -ne 1 ]; then
+          echo "Production environment must include exactly one APP_URL line." >&2
           exit 1
         fi
 
