@@ -17,6 +17,7 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('help', fn () => Inertia::render('Help'))->name('help');
     Route::get('support', [SupportController::class, 'create'])->name('support.create');
     Route::post('support', [SupportController::class, 'store'])->name('support.store');
     Route::resource('appendices', AppendixController::class)

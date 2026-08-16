@@ -54,6 +54,14 @@
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100">
+                    <Link href={route('help')} class="flex items-center gap-2 w-full">
+                        <CircleHelp class="h-4 w-4 shrink-0" />
+                        <span>Help</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100">
                     <Link href={route('support.create')} class="flex items-center gap-2 w-full">
                         <CircleHelp class="h-4 w-4 shrink-0" />
                         <span>Support</span>
