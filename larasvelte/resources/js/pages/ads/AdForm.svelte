@@ -338,7 +338,7 @@
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-2xl font-semibold">Edit Ad</h1>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 pb-1">
                 {#if navigation.previousAdId}
                     <Link
                         href={route('ads.edit', navigation.previousAdId)}
