@@ -5,6 +5,51 @@ use App\Models\AdImage;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
+
+it('passes the prompt through first generation and saves every generated detail', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create([
+        'openai_api_key' => 'test-key',
+    ]);
+
+    Http::fake([
+        '*' => Http::response([
+            'output_text' => json_encode([
+                'title' => 'First Generated Title',
+                'description' => str_repeat('First generated description. ', 4),
+                'condition' => 'Sehr gut',
+                'price' => 64,
+                'shipping' => 'mittel',
+            ], JSON_THROW_ON_ERROR),
+        ], 200),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('ads.store'), [
+            '_generate' => true,
+            'prompt_text' => 'Blue wool coat with a loose fit',
+            'auto_crop_enabled' => false,
+            'images' => [UploadedFile::fake()->image('coat.jpg')],
+        ])
+        ->assertRedirect(route('ads.index', absolute: false));
+
+    $this->assertDatabaseHas('ads', [
+        'user_id' => $user->id,
+        'title' => 'First Generated Title',
+        'description' => str_repeat('First generated description. ', 4),
+        'price' => 64,
+        'condition' => 'Sehr gut',
+        'shipping' => 'mittel',
+        'prompt_text' => 'Blue wool coat with a loose fit',
+    ]);
+
+    Http::assertSent(fn ($request): bool => str_contains(
+        $request->data()['input'][1]['content'][0]['text'] ?? '',
+        'Blue wool coat with a loose fit'
+    ));
+});
 
 it('uses a mock response when the user has no api key', function (): void {
     Storage::fake('public');
@@ -73,9 +118,11 @@ it('calls the responses api when the user has an api key', function (): void {
     $this->assertDatabaseHas('ads', [
         'id' => $ad->id,
         'title' => 'Generated Title',
+        'description' => str_repeat('Valid description. ', 4),
         'condition' => 'Gut',
         'price' => 42,
         'shipping' => 'klein',
+        'prompt_text' => 'Prompt text',
     ]);
 
     Http::assertSent(function ($request) {

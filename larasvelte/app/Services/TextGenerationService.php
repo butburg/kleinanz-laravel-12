@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Ad;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -47,8 +48,21 @@ class TextGenerationService
         $apiKey = $user->openai_api_key;
 
         if ($user->use_test_mode || ! $apiKey) {
+            Log::info('TEXT GENERATION: MOCK MODE - PROMPT NOT SENT TO LLM', [
+                'ad_id' => $ad->id,
+                'user_id' => $user->id,
+                'prompt_text' => $promptText,
+            ]);
+
             return $this->loadMockResponse();
         }
+
+        Log::info('TEXT GENERATION: SENDING PROMPT TO LLM', [
+            'ad_id' => $ad->id,
+            'user_id' => $user->id,
+            'has_prompt_text' => $promptText !== null && trim($promptText) !== '',
+            'prompt_text' => $promptText,
+        ]);
 
         $responsePayload = $this->callOpenAi($apiKey, $imageBase64, $promptText);
         $outputText = $this->extractOutputText($responsePayload);
@@ -114,6 +128,10 @@ class TextGenerationService
             'max_output_tokens' => config('ads.openai.max_tokens'),
             'store' => false,
         ];
+
+        Log::info('TEXT GENERATION: OPENAI REQUEST PAYLOAD', [
+            'user_instruction' => $payload['input'][1]['content'][0]['text'],
+        ]);
 
         $response = Http::timeout(config('ads.openai.timeout'))
             ->withToken($apiKey)
