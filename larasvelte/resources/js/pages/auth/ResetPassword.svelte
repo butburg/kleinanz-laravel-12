@@ -23,18 +23,12 @@
 <AuthLayout title="Reset password" description="Please enter your new password below">
     <Form
         method="post"
-        action={route('password.store')}
+        action={route('password.update')}
         transform={(data) => ({ ...data, token, email })}
         resetOnSuccess={['password', 'password_confirmation']}
     >
         {#snippet children({ errors, processing }: BaseFormSnippetProps)}
             <div class="grid gap-6">
-                <div class="grid gap-2">
-                    <Label for="email">Email</Label>
-                    <Input id="email" type="email" name="email" autocomplete="email" class="mt-1 block w-full" readonly />
-                    <InputError message={errors.email} class="mt-2" />
-                </div>
-
                 <div class="grid gap-2">
                     <Label for="password">Password</Label>
                     <Input
