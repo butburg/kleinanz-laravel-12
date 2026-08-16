@@ -98,10 +98,15 @@
     let saveTimeouts = new Map<string, number>();
     let adImages = $state<AdImage[]>([]);
     let isRefreshingCropStatus = $state(false);
+    let formInitialized = false;
 
     const CROP_STATUS_POLL_INTERVAL_MS = 3000;
 
     $effect(() => {
+        if (formInitialized) {
+            return;
+        }
+
         titleValue = ad.title;
         descriptionValue = ad.description;
         priceValue = ad.price;
@@ -109,6 +114,7 @@
         shippingValue = ad.shipping;
         statusValue = ad.status;
         promptValue = ad.prompt_text ?? '';
+        formInitialized = true;
     });
 
     $effect(() => {
@@ -201,25 +207,6 @@
         });
     }
 
-    function handleSave(): void {
-        if (!hasImages) return;
-
-        isSubmitting = true;
-
-        router.patch(route('ads.update', ad.id), {
-            title: titleValue,
-            description: descriptionValue,
-            price: priceValue,
-            condition: conditionValue,
-            shipping: shippingValue,
-            status: statusValue,
-            prompt_text: promptValue,
-        }, {
-            preserveScroll: true,
-            onFinish: () => isSubmitting = false,
-        });
-    }
-
     function handleDelete(): void {
         isSubmitting = true;
         showDeleteConfirm = false;
@@ -240,13 +227,13 @@
         fieldStates[fieldName] = 'saving';
         fieldErrors[fieldName] = '';
 
-        // Debounce: wait 300ms before saving
+        // Debounce briefly so blur saves feel immediate without duplicate requests.
         const timeoutId = window.setTimeout(() => {
             router.patch(route('ads.update', ad.id), {
                 [fieldName]: value,
             }, {
                 preserveScroll: true,
-                preserveState: false, // Allow state updates
+                preserveState: true,
                 onSuccess: () => {
                     fieldStates[fieldName] = 'saved';
                     fieldErrors[fieldName] = '';
@@ -262,15 +249,15 @@
                     saveTimeouts.delete(fieldName);
                 },
             });
-        }, 300);
+        }, 100);
 
         saveTimeouts.set(fieldName, timeoutId);
     }
 
     function getFieldClass(fieldName: string): string {
         const state = fieldStates[fieldName];
-        if (state === 'saved') return 'border-green-500';
-        if (state === 'saving') return 'border-yellow-500 animate-pulse';
+        if (state === 'saved') return 'field-saved';
+        if (state === 'saving') return 'field-saving';
         if (state === 'error') return 'border-red-500';
         return '';
     }
@@ -461,11 +448,6 @@
                 <div class="grid gap-2">
                     <div class="flex items-center gap-1">
                         <Label for="prompt_text">Prompt (optional)</Label>
-                        {#if fieldStates.prompt_text === 'saved'}
-                            <span class="text-sm text-green-600">✓ Saved</span>
-                        {:else if fieldStates.prompt_text === 'saving'}
-                            <span class="text-sm text-yellow-600">Saving...</span>
-                        {/if}
                     </div>
                     <textarea
                         id="prompt_text"
@@ -511,11 +493,6 @@
             <div class="grid gap-2">
                 <div class="flex items-center gap-1">
                     <Label for="title">Title</Label>
-                    {#if fieldStates.title === 'saved'}
-                        <span class="text-sm text-green-600">✓ Saved</span>
-                    {:else if fieldStates.title === 'saving'}
-                        <span class="text-sm text-yellow-600">Saving...</span>
-                    {/if}
                 </div>
                 <Input
                     id="title"
@@ -533,11 +510,6 @@
             <div class="grid gap-2">
                 <div class="flex items-center gap-1">
                     <Label for="description">Description</Label>
-                    {#if fieldStates.description === 'saved'}
-                        <span class="text-sm text-green-600">✓ Saved</span>
-                    {:else if fieldStates.description === 'saving'}
-                        <span class="text-sm text-yellow-600">Saving...</span>
-                    {/if}
                 </div>
                 <textarea
                     id="description"
@@ -556,11 +528,6 @@
             <div class="grid gap-2">
                 <div class="flex items-center gap-1">
                     <Label for="price">Price</Label>
-                    {#if fieldStates.price === 'saved'}
-                        <span class="text-sm text-green-600">✓ Saved</span>
-                    {:else if fieldStates.price === 'saving'}
-                        <span class="text-sm text-yellow-600">Saving...</span>
-                    {/if}
                 </div>
                 <Input
                     id="price"
@@ -580,11 +547,6 @@
                 <div class="grid gap-2">
                     <div class="flex items-center gap-1">
                         <Label for="condition">Condition</Label>
-                        {#if fieldStates.condition === 'saved'}
-                            <span class="text-sm text-green-600">✓</span>
-                        {:else if fieldStates.condition === 'saving'}
-                            <span class="text-sm text-yellow-600">⋯</span>
-                        {/if}
                     </div>
                     <select
                         id="condition"
@@ -605,11 +567,6 @@
                 <div class="grid gap-2">
                     <div class="flex items-center gap-1">
                         <Label for="shipping">Shipping</Label>
-                        {#if fieldStates.shipping === 'saved'}
-                            <span class="text-sm text-green-600">✓</span>
-                        {:else if fieldStates.shipping === 'saving'}
-                            <span class="text-sm text-yellow-600">⋯</span>
-                        {/if}
                     </div>
                     <select
                         id="shipping"
@@ -631,11 +588,6 @@
             <div class="grid gap-2">
                 <div class="flex items-center gap-1">
                     <Label for="status">Status</Label>
-                    {#if fieldStates.status === 'saved'}
-                        <span class="text-sm text-green-600">✓ Saved</span>
-                    {:else if fieldStates.status === 'saving'}
-                        <span class="text-sm text-yellow-600">Saving...</span>
-                    {/if}
                 </div>
                 <select
                     id="status"
@@ -653,10 +605,6 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <Button type="button" onclick={handleSave} disabled={isSubmitting || !hasImages}>
-                    Save Changes
-                </Button>
-
                 <Dialog open={showDeleteConfirm} onOpenChange={(open) => (showDeleteConfirm = open)}>
                         <DialogContent>
                             <DialogHeader class="space-y-2">
@@ -681,3 +629,31 @@
         </section>
     </div>
 </AppLayout>
+
+<style>
+    @keyframes field-saved-pulse {
+        0%,
+        100% {
+            border-color: #22c55e;
+        }
+
+        50% {
+            border-color: #86efac;
+        }
+    }
+
+    .field-saving {
+        border-color: #eab308;
+    }
+
+    .field-saved {
+        border-color: #22c55e;
+        animation: field-saved-pulse 700ms ease-out 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .field-saved {
+            animation: none;
+        }
+    }
+</style>
