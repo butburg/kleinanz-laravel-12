@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
 
 describe('API Key Settings', function () {
     beforeEach(function () {
@@ -115,6 +116,36 @@ describe('API Key Settings', function () {
 
             $response->assertRedirect(route('api-key.edit'));
             expect($this->user->openai_api_key)->toBeNull();
+        });
+    });
+
+    describe('POST /settings/api-key/test', function () {
+        it('returns a JSON success response when OpenAI accepts the key', function () {
+            $this->user->update(['openai_api_key' => 'sk-proj-validkeyformat12345']);
+
+            Http::fake([
+                'https://api.openai.com/v1/models*' => Http::response(['data' => []]),
+            ]);
+
+            $response = $this->postJson(route('api-key.test'));
+
+            $response
+                ->assertOk()
+                ->assertJson([
+                    'success' => true,
+                    'message' => 'API key is valid! ✓',
+                ]);
+        });
+
+        it('returns a JSON error response when no key is configured', function () {
+            $response = $this->postJson(route('api-key.test'));
+
+            $response
+                ->assertBadRequest()
+                ->assertJson([
+                    'success' => false,
+                    'message' => 'No API key configured',
+                ]);
         });
     });
 

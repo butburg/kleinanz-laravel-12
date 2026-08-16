@@ -150,8 +150,10 @@
                                 const response = await fetch(route('api-key.test'), {
                                     method: 'POST',
                                     headers: {
+                                        Accept: 'application/json',
                                         'Content-Type': 'application/json',
                                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                        'X-Requested-With': 'XMLHttpRequest',
                                     },
                                 });
 
