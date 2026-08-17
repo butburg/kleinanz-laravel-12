@@ -37,6 +37,7 @@
 
     interface Props {
         ads: PaginatedAds;
+        perPage: '10' | '20' | '50' | '100' | 'all';
         statusOptions: string[];
         options?: {
             conditions: string[];
@@ -82,7 +83,7 @@
         },
     ]);
 
-    let { ads, statusOptions, options, aiStatus, flash, errors }: Props = $props();
+    let { ads, perPage, statusOptions, options, aiStatus, flash, errors }: Props = $props();
     let copyFeedback = $state<string | null>(null);
     let updatingStatusIds = $state<number[]>([]);
 
@@ -386,11 +387,13 @@
         }, 1500);
     }
 
-    function downloadAllImages(images: Ad['images']): void {
-        images.forEach((image, index) => {
-            window.setTimeout(() => {
-                window.open(image.download_url, '_blank', 'noopener');
-            }, index * 150);
+    function updatePerPage(event: Event): void {
+        const select = event.currentTarget as HTMLSelectElement;
+
+        router.get(route('ads.index'), { per_page: select.value }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
         });
     }
 </script>
@@ -612,7 +615,26 @@
                 </Button>
             </div>
         {:else}
-            <h1 class="text-2xl font-semibold">My Ads</h1>
+            <div class="flex items-center justify-between gap-4">
+                <h1 class="text-2xl font-semibold">My Ads</h1>
+
+                <div class="flex items-center gap-2 pb-1">
+                    <Label for="ads-per-page" class="sr-only">Items per page</Label>
+                    <select
+                        id="ads-per-page"
+                        value={perPage}
+                        onchange={updatePerPage}
+                        title="Items per page"
+                        class="flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
 
             {#if ads.data.length === 0}
                 <p class="text-muted-foreground">No ads yet.</p>
@@ -706,7 +728,7 @@
                                                     size="sm"
                                                     variant="secondary"
                                                     class="w-full sm:w-auto"
-                                                    onclick={() => downloadAllImages(ad.images)}
+                                                    onclick={() => window.location.assign(route('ads.images.download-all', ad.id))}
                                                     data-test={`download-images-${ad.id}`}
                                                 >
                                                     <Download class="mr-2 size-4" aria-hidden="true" />

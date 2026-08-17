@@ -69,7 +69,7 @@ it('lists only ads that belong to the authenticated user', function (): void {
 
 it('paginates ads list for authenticated users', function (): void {
     $user = User::factory()->create();
-    Ad::factory()->count(13)->for($user)->create();
+    Ad::factory()->count(101)->for($user)->create();
 
     $this->actingAs($user)
         ->get(route('ads.index'))
@@ -77,9 +77,10 @@ it('paginates ads list for authenticated users', function (): void {
         ->assertInertia(
             fn(Assert $page) => $page
                 ->component('ads/Index')
-                ->has('ads.data', 12)
+                ->has('ads.data', 10)
+                ->where('perPage', '10')
                 ->where('ads.current_page', 1)
-                ->where('ads.last_page', 2)
+                ->where('ads.last_page', 11)
         );
 
     $this->actingAs($user)
@@ -88,8 +89,31 @@ it('paginates ads list for authenticated users', function (): void {
         ->assertInertia(
             fn(Assert $page) => $page
                 ->component('ads/Index')
-                ->has('ads.data', 1)
+                ->has('ads.data', 10)
                 ->where('ads.current_page', 2)
+        );
+
+    foreach ([20, 50, 100] as $perPage) {
+        $this->actingAs($user)
+            ->get(route('ads.index', ['per_page' => $perPage]))
+            ->assertOk()
+            ->assertInertia(
+                fn(Assert $page) => $page
+                    ->component('ads/Index')
+                    ->has('ads.data', $perPage)
+                    ->where('perPage', (string) $perPage)
+            );
+    }
+
+    $this->actingAs($user)
+        ->get(route('ads.index', ['per_page' => 'all']))
+        ->assertOk()
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Index')
+                ->has('ads.data', 101)
+                ->where('perPage', 'all')
+                ->where('ads.last_page', 1)
         );
 });
 

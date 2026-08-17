@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('ads/{ad}/images/{adImage}/title', [AdController::class, 'setTitleImage'])->name('ads.images.set-title');
     Route::post('ads/{ad}/images/{adImage}/toggle-crop', [AdController::class, 'toggleImageCrop'])->name('ads.images.toggle-crop');
     Route::patch('ads/{ad}/images/{adImage}/crop-preference', [AdController::class, 'updateImageCropPreference'])->name('ads.images.crop-preference');
+    Route::get('ads/{ad}/images/download', [AdController::class, 'downloadAllImages'])->name('ads.images.download-all');
     Route::get('ads/{ad}/images/{adImage}/download', [AdController::class, 'downloadImage'])->name('ads.images.download');
     Route::delete('ads/{ad}/images/{adImage}', [AdController::class, 'destroyImage'])->name('ads.images.destroy');
 });

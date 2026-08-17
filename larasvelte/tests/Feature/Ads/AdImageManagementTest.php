@@ -75,7 +75,7 @@ it('rejects creating ads with more than ten images', function (): void {
     $user = User::factory()->create();
 
     $images = collect(range(1, 11))
-        ->map(fn(int $i): UploadedFile => UploadedFile::fake()->image("file-{$i}.jpg"))
+        ->map(fn (int $i): UploadedFile => UploadedFile::fake()->image("file-{$i}.jpg"))
         ->all();
 
     $this->actingAs($user)->post(route('ads.store'), [
@@ -235,6 +235,34 @@ it('allows owner to download an ad image', function (): void {
 
     $response->assertOk();
     $response->assertHeader('content-disposition', 'attachment; filename=downloadable.jpg');
+});
+
+it('downloads all ad images in one zip archive', function (): void {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $ad = Ad::factory()->for($user)->create(['title' => 'Compact battery charger']);
+    $firstImage = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/first.jpg',
+        'original_name' => 'image_01.jpg',
+    ]);
+    $secondImage = AdImage::factory()->for($ad)->create([
+        'large_path' => 'ads/second.jpg',
+        'original_name' => 'image_03.jpg',
+    ]);
+    Storage::disk('public')->put($firstImage->large_path, 'first-image');
+    Storage::disk('public')->put($secondImage->large_path, 'second-image');
+
+    $response = $this->actingAs($user)->get(route('ads.images.download-all', $ad));
+
+    $response->assertOk();
+    $response->assertDownload('compact-battery-charger.zip');
+
+    $archive = new ZipArchive;
+    expect($archive->open($response->baseResponse->getFile()->getPathname()))->toBeTrue();
+    expect($archive->getFromName('01-image_01.jpg'))->toBe('first-image');
+    expect($archive->getFromName('02-image_03.jpg'))->toBe('second-image');
+    $archive->close();
 });
 
 it('forbids downloading an image from another users ad', function (): void {

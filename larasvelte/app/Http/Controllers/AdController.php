@@ -18,12 +18,15 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\ImageManager;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class AdController extends Controller
 {
@@ -307,11 +310,19 @@ class AdController extends Controller
 
     public function index(Request $request): Response
     {
+        $perPage = match ($request->query('per_page')) {
+            '20' => 20,
+            '50' => 50,
+            '100' => 100,
+            'all' => max(1, $request->user()->ads()->count()),
+            default => 10,
+        };
+
         $ads = Ad::query()
             ->whereBelongsTo($request->user())
             ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,use_cropped,is_title'])
             ->latest()
-            ->paginate(12)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Ad $ad): array => [
                 'id' => $ad->id,
@@ -333,6 +344,7 @@ class AdController extends Controller
 
         return Inertia::render('ads/Index', [
             'ads' => $ads,
+            'perPage' => $request->query('per_page') === 'all' ? 'all' : (string) $perPage,
             'statusOptions' => config('ads.status.options'),
             'options' => $this->formOptions($request),
             'aiStatus' => [
@@ -710,5 +722,40 @@ class AdController extends Controller
         abort_if($downloadPath === null || ! Storage::disk('public')->exists($downloadPath), 404);
 
         return Storage::disk('public')->download($downloadPath, $adImage->original_name);
+    }
+
+    public function downloadAllImages(Ad $ad): BinaryFileResponse
+    {
+        $this->authorize('update', $ad);
+
+        $images = $ad->images()->oldest()->get();
+        abort_if($images->isEmpty(), 404);
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'ad-images-');
+        abort_if($temporaryPath === false, 500);
+
+        $archive = new ZipArchive;
+        abort_unless($archive->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500);
+
+        foreach ($images as $index => $image) {
+            $useCropped = $image->use_cropped
+                && $image->cropped_path
+                && Storage::disk('public')->exists($image->cropped_path);
+            $downloadPath = $useCropped ? $image->cropped_path : $image->large_path;
+
+            if ($downloadPath && Storage::disk('public')->exists($downloadPath)) {
+                $archive->addFromString(
+                    sprintf('%02d-%s', $index + 1, $image->original_name),
+                    Storage::disk('public')->get($downloadPath)
+                );
+            }
+        }
+
+        $archive->close();
+
+        return response()->download(
+            $temporaryPath,
+            (Str::slug($ad->title) ?: 'ad-images').'.zip',
+        )->deleteFileAfterSend();
     }
 }
