@@ -9,6 +9,7 @@
     import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import UserMenuContent from '@/components/UserMenuContent.svelte';
+    import { adsIndexHref, visitSavedAdsIndex } from '@/hooks/useAdPreferences.svelte';
     import { getInitials } from '@/hooks/useInitials';
     import type { BreadcrumbItem } from '@/types';
     import { Link, page, router } from '@inertiajs/svelte';
@@ -29,7 +30,7 @@
 
     let user = $derived($page.props.auth.user);
 
-    const isCurrentRoute = $derived((url: string) => $page.url === url);
+    const isCurrentRoute = $derived((url: string) => url === '/ads' ? $page.url.startsWith('/ads') : $page.url === url);
 
     const activeItemStyles = $derived((url: string) => (isCurrentRoute(url) ? 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100' : ''));
 
@@ -76,17 +77,30 @@
                         <div class="flex h-full flex-1 flex-col justify-between space-y-4 py-6">
                             <nav class="-mx-3 space-y-1">
                                 {#each mainNavItems as item (item.title)}
-                                    <Link
-                                        href={item.href}
-                                        class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent {activeItemStyles(
-                                            item.href,
-                                        )}"
-                                    >
-                                        {#if item.icon}
-                                            <item.icon class="h-5 w-5" />
-                                        {/if}
-                                        {item.title}
-                                    </Link>
+                                    {#if item.href === '/ads'}
+                                        <a
+                                            href={adsIndexHref()}
+                                            onclick={visitSavedAdsIndex}
+                                            class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent {activeItemStyles(item.href)}"
+                                        >
+                                            {#if item.icon}
+                                                <item.icon class="h-5 w-5" />
+                                            {/if}
+                                            {item.title}
+                                        </a>
+                                    {:else}
+                                        <Link
+                                            href={item.href}
+                                            class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent {activeItemStyles(
+                                                item.href,
+                                            )}"
+                                        >
+                                            {#if item.icon}
+                                                <item.icon class="h-5 w-5" />
+                                            {/if}
+                                            {item.title}
+                                        </Link>
+                                    {/if}
                                 {/each}
                             </nav>
                             <div class="flex flex-col space-y-4">
@@ -129,9 +143,13 @@
                             </MenubarTrigger>
                             <MenubarContent align="start">
                                 <MenubarItem>
-                                    <Link href={item.href}>
-                                        {item.title}
-                                    </Link>
+                                    {#if item.href === '/ads'}
+                                        <a href={adsIndexHref()} onclick={visitSavedAdsIndex}>{item.title}</a>
+                                    {:else}
+                                        <Link href={item.href}>
+                                            {item.title}
+                                        </Link>
+                                    {/if}
                                 </MenubarItem>
                             </MenubarContent>
                         </MenubarMenu>

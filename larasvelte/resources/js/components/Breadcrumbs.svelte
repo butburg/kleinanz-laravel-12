@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Breadcrumb, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Item } from '@/components/ui/breadcrumb';
+    import { adsIndexHref, visitSavedAdsIndex } from '@/hooks/useAdPreferences.svelte';
     import { Link } from '@inertiajs/svelte';
 
     interface BreadcrumbItem {
@@ -22,7 +23,11 @@
                     <BreadcrumbPage>{item.title}</BreadcrumbPage>
                 {:else}
                     <BreadcrumbLink>
-                        <Link href={item.href ?? '#'}>{item.title}</Link>
+                        {#if item.href === '/ads'}
+                            <a href={adsIndexHref()} onclick={visitSavedAdsIndex}>{item.title}</a>
+                        {:else}
+                            <Link href={item.href ?? '#'}>{item.title}</Link>
+                        {/if}
                     </BreadcrumbLink>
                 {/if}
             </Item>

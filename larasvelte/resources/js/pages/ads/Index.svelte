@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@
     import InfoIcon from '@lucide/svelte/icons/info';
     import { Link, page, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
+    import { type AdsPerPage, useAdPreferences } from '@/hooks/useAdPreferences.svelte';
     import { Check, ChevronsUpDown, Copy, Download, Pencil } from 'lucide-svelte';
 
     type Ad = {
@@ -85,6 +87,9 @@
     ]);
 
     let { ads, perPage, statusFilter, statusOptions, options, aiStatus, flash, errors }: Props = $props();
+    const adPreferences = useAdPreferences();
+    let hasTrackedPage = $state(false);
+    let wasCreateAdPage = $state(false);
     let copiedTarget = $state<string | null>(null);
     let updatingStatusIds = $state<number[]>([]);
 
@@ -101,7 +106,7 @@
     let selectedTitleIndex = $state(0);
     let promptValue = $state('');
     let autoCropEnabled = $state(true);
-    let selectedPlatform = $state('');
+    let selectedPlatform = $state(adPreferences.preferences.platform ?? '');
     let isSubmitting = $state(false);
     let isPreparingImages = $state(false);
 
@@ -120,6 +125,56 @@
             ? options.default_platform ?? ''
             : options.platforms[0];
     });
+
+    onMount(() => {
+        const savedPreferences = adPreferences.reload();
+
+        if (isCreateAdPage) {
+            if (savedPreferences.platform && options?.platforms?.includes(savedPreferences.platform)) {
+                selectedPlatform = savedPreferences.platform;
+            }
+
+            return;
+        }
+
+        restoreListPreferences(savedPreferences);
+    });
+
+    $effect(() => {
+        if (!hasTrackedPage) {
+            wasCreateAdPage = isCreateAdPage;
+            hasTrackedPage = true;
+
+            return;
+        }
+
+        const returnedToAds = wasCreateAdPage && !isCreateAdPage;
+        wasCreateAdPage = isCreateAdPage;
+
+        if (returnedToAds) {
+            restoreListPreferences(adPreferences.reload());
+        }
+    });
+
+    function restoreListPreferences(savedPreferences: ReturnType<typeof adPreferences.reload>): void {
+        const currentUrl = new URL($page.url, window.location.origin);
+        if (currentUrl.searchParams.has('per_page') || currentUrl.searchParams.has('status')) {
+            return;
+        }
+
+        if (savedPreferences.perPage === perPage && savedPreferences.statusFilter === statusFilter) {
+            return;
+        }
+
+        router.get(route('ads.index'), {
+            per_page: savedPreferences.perPage,
+            ...(savedPreferences.statusFilter ? { status: savedPreferences.statusFilter } : {}),
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    }
 
     function imageClientConfig() {
         const maxDimension = options?.image?.client?.max_dimension ?? 1000;
@@ -392,9 +447,12 @@
 
     function updatePerPage(event: Event): void {
         const select = event.currentTarget as HTMLSelectElement;
+        const selectedPerPage = select.value as AdsPerPage;
+
+        adPreferences.updatePreferences({ perPage: selectedPerPage });
 
         router.get(route('ads.index'), {
-            per_page: select.value,
+            per_page: selectedPerPage,
             ...(statusFilter ? { status: statusFilter } : {}),
         }, {
             preserveScroll: true,
@@ -405,15 +463,25 @@
 
     function updateStatusFilter(event: Event): void {
         const select = event.currentTarget as HTMLSelectElement;
+        const selectedStatusFilter = select.value || null;
+
+        adPreferences.updatePreferences({ statusFilter: selectedStatusFilter });
 
         router.get(route('ads.index'), {
             per_page: perPage,
-            ...(select.value ? { status: select.value } : {}),
+            ...(selectedStatusFilter ? { status: selectedStatusFilter } : {}),
         }, {
             preserveScroll: true,
             preserveState: true,
             replace: true,
         });
+    }
+
+    function updatePlatform(event: Event): void {
+        const select = event.currentTarget as HTMLSelectElement;
+
+        selectedPlatform = select.value;
+        adPreferences.updatePreferences({ platform: selectedPlatform });
     }
 </script>
 
@@ -594,7 +662,8 @@
                     {#if options?.platforms?.length}
                         <select
                             id="create-platform"
-                            bind:value={selectedPlatform}
+                            value={selectedPlatform}
+                            onchange={updatePlatform}
                             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         >
                             {#each options.platforms as platform (platform)}
@@ -681,6 +750,8 @@
                                     <img
                                         src={ad.thumbnail_url}
                                         alt={`Thumbnail for ${ad.title}`}
+                                        loading="lazy"
+                                        decoding="async"
                                         class="h-[220px] w-full max-w-[220px] shrink-0 rounded-md border bg-muted/20 object-contain"
                                         data-test={`ad-thumbnail-${ad.id}`}
                                     />
