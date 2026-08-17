@@ -5,7 +5,7 @@ use App\Models\User;
 
 it('allows copying title and description directly from ads index', function (): void {
     $user = User::factory()->create();
-    Ad::factory()->for($user)->create([
+    $ad = Ad::factory()->for($user)->create([
         'title' => 'Copyable title',
         'description' => 'Copyable description body',
         'status' => 'Entwurf',
@@ -17,7 +17,12 @@ it('allows copying title and description directly from ads index', function (): 
 
     $page->assertSee('Copyable title')
         ->click('Copy title')
-        ->assertSee('Title copied.')
+        ->assertAttributeContains('[data-test="copy-title-'.$ad->id.'"]', 'class', 'copy-saved')
+        ->assertPresent('[data-test="copy-title-check-'.$ad->id.'"]')
         ->click('Copy description')
-        ->assertSee('Description copied.');
+        ->assertAttributeContains('[data-test="copy-description-'.$ad->id.'"]', 'class', 'copy-saved')
+        ->assertAttributeDoesntContain('[data-test="copy-title-'.$ad->id.'"]', 'class', 'copy-saved')
+        ->assertPresent('[data-test="copy-description-check-'.$ad->id.'"]')
+        ->assertDontSee('Title copied.')
+        ->assertDontSee('Description copied.');
 });

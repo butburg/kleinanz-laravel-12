@@ -7,7 +7,7 @@
     import InfoIcon from '@lucide/svelte/icons/info';
     import { Link, page, router } from '@inertiajs/svelte';
     import type { BreadcrumbItem } from '@/types';
-    import { ChevronsUpDown, Copy, Download, Pencil } from 'lucide-svelte';
+    import { Check, ChevronsUpDown, Copy, Download, Pencil } from 'lucide-svelte';
 
     type Ad = {
         id: number;
@@ -84,7 +84,7 @@
     ]);
 
     let { ads, perPage, statusOptions, options, aiStatus, flash, errors }: Props = $props();
-    let copyFeedback = $state<string | null>(null);
+    let copiedTarget = $state<string | null>(null);
     let updatingStatusIds = $state<number[]>([]);
 
     // Create ad state
@@ -367,7 +367,7 @@
         });
     }
 
-    async function copyText(text: string, successMessage: string): Promise<void> {
+    async function copyText(text: string, target: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(text);
         } catch {
@@ -379,12 +379,12 @@
             document.body.removeChild(fallback);
         }
 
-        copyFeedback = successMessage;
+        copiedTarget = target;
         window.setTimeout(() => {
-            if (copyFeedback === successMessage) {
-                copyFeedback = null;
+            if (copiedTarget === target) {
+                copiedTarget = null;
             }
-        }, 1500);
+        }, 1200);
     }
 
     function updatePerPage(event: Event): void {
@@ -698,12 +698,17 @@
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
-                                                class="w-full sm:w-auto"
+                                                class={`w-full sm:w-auto ${copiedTarget === `title-${ad.id}` ? 'copy-saved' : ''}`}
                                                 onclick={() => {
-                                                    void copyText(ad.title, 'Title copied.');
+                                                    void copyText(ad.title, `title-${ad.id}`);
                                                 }}
+                                                data-test={`copy-title-${ad.id}`}
                                             >
-                                                <Copy class="mr-2 size-4" aria-hidden="true" />
+                                                {#if copiedTarget === `title-${ad.id}`}
+                                                    <Check class="mr-2 size-4" aria-hidden="true" data-test={`copy-title-check-${ad.id}`} />
+                                                {:else}
+                                                    <Copy class="mr-2 size-4" aria-hidden="true" />
+                                                {/if}
                                                 Copy title
                                             </Button>
 
@@ -711,12 +716,17 @@
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
-                                                class="w-full sm:w-auto"
+                                                class={`w-full sm:w-auto ${copiedTarget === `description-${ad.id}` ? 'copy-saved' : ''}`}
                                                 onclick={() => {
-                                                    void copyText(ad.description, 'Description copied.');
+                                                    void copyText(ad.description, `description-${ad.id}`);
                                                 }}
+                                                data-test={`copy-description-${ad.id}`}
                                             >
-                                                <Copy class="mr-2 size-4" aria-hidden="true" />
+                                                {#if copiedTarget === `description-${ad.id}`}
+                                                    <Check class="mr-2 size-4" aria-hidden="true" data-test={`copy-description-check-${ad.id}`} />
+                                                {:else}
+                                                    <Copy class="mr-2 size-4" aria-hidden="true" />
+                                                {/if}
                                                 Copy description
                                             </Button>
                                         </div>
@@ -746,9 +756,6 @@
                                             </Link>
                                         </div>
                                     </div>
-                                    {#if copyFeedback}
-                                        <p class="mt-1 text-xs text-muted-foreground" data-test="copy-feedback">{copyFeedback}</p>
-                                    {/if}
                                 </div>
                             </div>
                         </li>
@@ -776,6 +783,17 @@
 </AppLayout>
 
 <style>
+    @keyframes field-saved-pulse {
+        0%,
+        100% {
+            border-color: #22c55e;
+        }
+
+        50% {
+            border-color: #86efac;
+        }
+    }
+
     @keyframes status-background-sweep {
         from {
             background-position: 200% 0;
@@ -799,9 +817,18 @@
         animation: status-background-sweep 2400ms linear infinite;
     }
 
+    :global(.copy-saved) {
+        border-color: #22c55e;
+        animation: field-saved-pulse 700ms ease-out 1;
+    }
+
     @media (prefers-reduced-motion: reduce) {
+        :global(.copy-saved),
         .status-saving {
             animation: none;
+        }
+
+        .status-saving {
             background-image: none;
         }
     }
