@@ -615,7 +615,7 @@ class AdController extends Controller
 
         $ad->update($payload);
 
-        return to_route('ads.index')->with('success', 'Ad status updated successfully.');
+        return back()->with('success', 'Ad status updated successfully.');
     }
 
     public function setTitleImage(Ad $ad, AdImage $adImage): RedirectResponse

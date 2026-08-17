@@ -637,14 +637,14 @@
             <div class="flex items-center justify-between gap-4">
                 <h1 class="text-2xl font-semibold">My Ads</h1>
 
-                <div class="flex items-center gap-2 pb-1">
+                <div class="flex items-center gap-2">
                     <Label for="ads-status-filter" class="sr-only">Filter by status</Label>
                     <select
                         id="ads-status-filter"
                         value={statusFilter ?? ''}
                         onchange={updateStatusFilter}
                         title="Filter by status"
-                        class="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        class="flex h-9 rounded-md border border-input bg-transparent px-1 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         data-test="ads-status-filter"
                     >
                         <option value="">All</option>
@@ -659,7 +659,7 @@
                         value={perPage}
                         onchange={updatePerPage}
                         title="Items per page"
-                        class="flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        class="flex h-9 w-15 rounded-md border border-input bg-transparent px-1 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
                         <option value="10">10</option>
                         <option value="20">20</option>

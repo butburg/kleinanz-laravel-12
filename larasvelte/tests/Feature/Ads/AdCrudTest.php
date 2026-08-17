@@ -253,11 +253,18 @@ it('allows updating ad status from the dedicated status endpoint', function (): 
         'status' => 'Draft',
         'last_online_at' => null,
     ]);
+    $listUrl = route('ads.index', [
+        'page' => 2,
+        'per_page' => 50,
+        'status' => 'Draft',
+    ]);
 
-    $this->actingAs($user)->patch(route('ads.status.update', $ad), [
-        'status' => 'Online',
-    ])
-        ->assertRedirect(route('ads.index', absolute: false))
+    $this->actingAs($user)
+        ->from($listUrl)
+        ->patch(route('ads.status.update', $ad), [
+            'status' => 'Online',
+        ])
+        ->assertRedirect($listUrl)
         ->assertSessionHas('success', 'Ad status updated successfully.');
 
     expect($ad->fresh()?->status)->toBe('Online');
