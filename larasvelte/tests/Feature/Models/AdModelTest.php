@@ -61,7 +61,7 @@ it('orders images by created_at when position removed', function () {
 it('automatically updates last_online_at when status changes to Online', function () {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create([
-        'status' => 'Entwurf',
+        'status' => 'Draft',
         'last_online_at' => null,
     ]);
 
@@ -90,7 +90,7 @@ it('does not update last_online_at when status stays Online', function () {
         ->toBe($oldTimestamp->toDateTimeString());
 });
 
-it('does not update last_online_at when changing from Online to Archiviert', function () {
+it('does not update last_online_at when changing from Online to Archived', function () {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create([
         'status' => 'Online',
@@ -99,7 +99,7 @@ it('does not update last_online_at when changing from Online to Archiviert', fun
 
     $oldTimestamp = $ad->last_online_at;
 
-    $ad->status = 'Archiviert';
+    $ad->status = 'Archived';
     $ad->save();
 
     expect($ad->fresh()->last_online_at->toDateTimeString())

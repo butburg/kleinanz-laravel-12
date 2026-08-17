@@ -116,7 +116,7 @@ test('can upload image on edit page', function (): void {
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');
@@ -147,7 +147,7 @@ test('generate button is enabled on edit page when images exist', function (): v
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     // Add an image
@@ -180,7 +180,7 @@ test('debug: check form submission when clicking generate on edit page', functio
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');
@@ -234,7 +234,7 @@ test('debug: browser logs for generate flow', function (): void {
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');

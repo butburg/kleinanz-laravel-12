@@ -47,7 +47,7 @@ test('generate button works on edit page with images', function (): void {
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');
@@ -79,7 +79,7 @@ test('generate form exists on edit page', function (): void {
         'price' => 100,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $imagePath = base_path('no_laravel/migration_source/edit_ad_layout_example.png');

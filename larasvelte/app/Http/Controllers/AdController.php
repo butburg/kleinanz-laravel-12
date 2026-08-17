@@ -34,7 +34,8 @@ class AdController extends Controller
     {
         return match ($status) {
             'Online' => 'green',
-            'Archiviert' => 'zinc',
+            'Archived' => 'zinc',
+            'Sold' => 'black',
             default => 'amber',
         };
     }
@@ -310,6 +311,11 @@ class AdController extends Controller
 
     public function index(Request $request): Response
     {
+        $statusFilter = $request->query('status');
+        $statusFilter = is_string($statusFilter) && in_array($statusFilter, config('ads.status.options'), true)
+            ? $statusFilter
+            : null;
+
         $perPage = match ($request->query('per_page')) {
             '20' => 20,
             '50' => 50,
@@ -320,6 +326,7 @@ class AdController extends Controller
 
         $ads = Ad::query()
             ->whereBelongsTo($request->user())
+            ->when($statusFilter, fn ($query) => $query->where('status', $statusFilter))
             ->with(['images:id,ad_id,original_name,large_thumb_path,cropped_thumb_path,use_cropped,is_title'])
             ->latest()
             ->paginate($perPage)
@@ -345,6 +352,7 @@ class AdController extends Controller
         return Inertia::render('ads/Index', [
             'ads' => $ads,
             'perPage' => $request->query('per_page') === 'all' ? 'all' : (string) $perPage,
+            'statusFilter' => $statusFilter,
             'statusOptions' => config('ads.status.options'),
             'options' => $this->formOptions($request),
             'aiStatus' => [

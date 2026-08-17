@@ -27,8 +27,8 @@ return [
     ],
 
     'status' => [
-        'default' => 'Entwurf',
-        'options' => ['Entwurf', 'Online', 'Archiviert'],
+        'default' => 'Draft',
+        'options' => ['Online', 'Draft', 'Archived', 'Sold'],
     ],
 
     'openai' => [

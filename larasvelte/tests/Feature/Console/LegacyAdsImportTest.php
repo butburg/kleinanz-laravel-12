@@ -86,7 +86,7 @@ it('stages SQL exports and imports every ad for the configured owner', function 
 });
 
 it('validates SQL exports without leaving a staging directory', function (): void {
-    $payload = ['title' => 'Dry run', 'description' => 'Dry run description is deliberately long enough for validation.', 'price' => 1, 'condition' => 'Neu', 'shipping' => 'klein', 'status' => 'Entwurf'];
+    $payload = ['title' => 'Dry run', 'description' => 'Dry run description is deliberately long enough for validation.', 'price' => 1, 'condition' => 'Neu', 'shipping' => 'klein', 'status' => 'Draft'];
     $json = json_encode($payload, JSON_THROW_ON_ERROR);
     $sqlJson = str_replace(['\\', "'"], ['\\\\', "\\'"], $json);
     File::put("{$this->legacySourceDirectory}/ads.sql", "INSERT INTO `ads` (`id`, `ad_json`) VALUES ('dry-run-id', '{$sqlJson}');\n");

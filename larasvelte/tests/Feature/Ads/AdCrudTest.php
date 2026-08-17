@@ -26,7 +26,7 @@ it('lets authenticated users create an ad', function (): void {
         'user_id' => $user->id,
         'title' => 'Vintage Denim Jacket',
         'price' => 45,
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 });
 
@@ -117,6 +117,24 @@ it('paginates ads list for authenticated users', function (): void {
         );
 });
 
+it('filters ads by the selected status', function (): void {
+    $user = User::factory()->create();
+    $soldAd = Ad::factory()->for($user)->create(['status' => 'Sold']);
+    Ad::factory()->for($user)->create(['status' => 'Draft']);
+
+    $this->actingAs($user)
+        ->get(route('ads.index', ['status' => 'Sold', 'per_page' => 20]))
+        ->assertOk()
+        ->assertInertia(
+            fn(Assert $page) => $page
+                ->component('ads/Index')
+                ->where('statusFilter', 'Sold')
+                ->where('perPage', '20')
+                ->has('ads.data', 1)
+                ->where('ads.data.0.id', $soldAd->id)
+        );
+});
+
 it('lets owners update and delete their ad', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create([
@@ -162,7 +180,7 @@ it('forbids modifying ads owned by another user', function (): void {
         'price' => 5,
         'condition' => 'Defekt',
         'shipping' => 'klein',
-        'status' => 'Archiviert',
+        'status' => 'Archived',
     ])->assertForbidden();
 
     $this->actingAs($intruder)->delete(route('ads.destroy', $ad))->assertForbidden();
@@ -189,7 +207,7 @@ it('tracks last_online_at when creating ad directly as Online', function (): voi
 it('tracks last_online_at when status transitions from non-online to Online', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create([
-        'status' => 'Entwurf',
+        'status' => 'Draft',
         'last_online_at' => null,
     ]);
 
@@ -232,7 +250,7 @@ it('does not change last_online_at when ad remains Online', function (): void {
 it('allows updating ad status from the dedicated status endpoint', function (): void {
     $user = User::factory()->create();
     $ad = Ad::factory()->for($user)->create([
-        'status' => 'Entwurf',
+        'status' => 'Draft',
         'last_online_at' => null,
     ]);
 

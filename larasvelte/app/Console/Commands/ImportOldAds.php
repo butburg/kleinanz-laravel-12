@@ -171,7 +171,7 @@ class ImportOldAds extends Command
             'price' => (int)($adData['price'] ?? 0),
             'condition' => $adData['condition'] ?? 'Neu',
             'shipping' => $adData['shipping'] ?? 'klein',
-            'status' => $adData['status'] ?? 'Entwurf',
+            'status' => $adData['status'] ?? 'Draft',
             'prompt_text' => $adData['prompt_text'] ?? null,
             'metadata' => json_encode($adData['metadata'] ?? []),
         ]);

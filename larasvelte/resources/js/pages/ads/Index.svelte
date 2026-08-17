@@ -14,7 +14,7 @@
         title: string;
         description: string;
         status: string;
-        status_color: 'green' | 'amber' | 'zinc';
+        status_color: 'green' | 'amber' | 'zinc' | 'black';
         price: number;
         expiry_at: string | null;
         days_to_expiry: number | null;
@@ -38,6 +38,7 @@
     interface Props {
         ads: PaginatedAds;
         perPage: '10' | '20' | '50' | '100' | 'all';
+        statusFilter: string | null;
         statusOptions: string[];
         options?: {
             conditions: string[];
@@ -83,7 +84,7 @@
         },
     ]);
 
-    let { ads, perPage, statusOptions, options, aiStatus, flash, errors }: Props = $props();
+    let { ads, perPage, statusFilter, statusOptions, options, aiStatus, flash, errors }: Props = $props();
     let copiedTarget = $state<string | null>(null);
     let updatingStatusIds = $state<number[]>([]);
 
@@ -308,7 +309,7 @@
         formData.append('prompt_text', promptValue);
         formData.append('title_image_index', String(selectedTitleIndex));
         formData.append('auto_crop_enabled', autoCropEnabled ? '1' : '0');
-        formData.append('status', options?.statuses[0] || 'Entwurf');
+        formData.append('status', options?.statuses.includes('Draft') ? 'Draft' : options?.statuses[0] || 'Draft');
         formData.append('platform', selectedPlatform);
         formData.append('_generate', 'true');
 
@@ -327,6 +328,8 @@
                 return 'bg-green-100 text-green-800 border-green-200';
             case 'zinc':
                 return 'bg-zinc-100 text-zinc-800 border-zinc-200';
+            case 'black':
+                return 'border-zinc-950 bg-zinc-950 text-white';
             default:
                 return 'bg-amber-100 text-amber-800 border-amber-200';
         }
@@ -390,7 +393,23 @@
     function updatePerPage(event: Event): void {
         const select = event.currentTarget as HTMLSelectElement;
 
-        router.get(route('ads.index'), { per_page: select.value }, {
+        router.get(route('ads.index'), {
+            per_page: select.value,
+            ...(statusFilter ? { status: statusFilter } : {}),
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    function updateStatusFilter(event: Event): void {
+        const select = event.currentTarget as HTMLSelectElement;
+
+        router.get(route('ads.index'), {
+            per_page: perPage,
+            ...(select.value ? { status: select.value } : {}),
+        }, {
             preserveScroll: true,
             preserveState: true,
             replace: true,
@@ -619,6 +638,21 @@
                 <h1 class="text-2xl font-semibold">My Ads</h1>
 
                 <div class="flex items-center gap-2 pb-1">
+                    <Label for="ads-status-filter" class="sr-only">Filter by status</Label>
+                    <select
+                        id="ads-status-filter"
+                        value={statusFilter ?? ''}
+                        onchange={updateStatusFilter}
+                        title="Filter by status"
+                        class="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        data-test="ads-status-filter"
+                    >
+                        <option value="">All</option>
+                        {#each statusOptions as statusOption (statusOption)}
+                            <option value={statusOption}>{statusOption}</option>
+                        {/each}
+                    </select>
+
                     <Label for="ads-per-page" class="sr-only">Items per page</Label>
                     <select
                         id="ads-per-page"

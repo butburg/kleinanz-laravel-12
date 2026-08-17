@@ -8,7 +8,7 @@ it('allows copying title and description directly from ads index', function (): 
     $ad = Ad::factory()->for($user)->create([
         'title' => 'Copyable title',
         'description' => 'Copyable description body',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $this->actingAs($user);

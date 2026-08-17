@@ -11,7 +11,7 @@ it('deletes an ad from the edit page', function (): void {
         'price' => 20,
         'condition' => 'Gut',
         'shipping' => 'klein',
-        'status' => 'Entwurf',
+        'status' => 'Draft',
     ]);
 
     $this->actingAs($user);

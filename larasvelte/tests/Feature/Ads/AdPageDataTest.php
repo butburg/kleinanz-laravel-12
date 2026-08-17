@@ -147,9 +147,10 @@ it('prefers cropped thumbnail url for ad list item when available', function ():
 
 it('includes status color indicator for each ad on index page', function (): void {
     $user = User::factory()->create();
-    $draft = Ad::factory()->for($user)->create(['status' => 'Entwurf']);
+    $draft = Ad::factory()->for($user)->create(['status' => 'Draft']);
     $online = Ad::factory()->for($user)->create(['status' => 'Online']);
-    $archived = Ad::factory()->for($user)->create(['status' => 'Archiviert']);
+    $archived = Ad::factory()->for($user)->create(['status' => 'Archived']);
+    $sold = Ad::factory()->for($user)->create(['status' => 'Sold']);
 
     $this->actingAs($user)
         ->get(route('ads.index'))
@@ -160,6 +161,7 @@ it('includes status color indicator for each ad on index page', function (): voi
                 ->where('ads.data', fn($ads): bool => collect($ads)->contains(fn(array $ad): bool => $ad['id'] === $archived->id && $ad['status_color'] === 'zinc'))
                 ->where('ads.data', fn($ads): bool => collect($ads)->contains(fn(array $ad): bool => $ad['id'] === $online->id && $ad['status_color'] === 'green'))
                 ->where('ads.data', fn($ads): bool => collect($ads)->contains(fn(array $ad): bool => $ad['id'] === $draft->id && $ad['status_color'] === 'amber'))
+                ->where('ads.data', fn($ads): bool => collect($ads)->contains(fn(array $ad): bool => $ad['id'] === $sold->id && $ad['status_color'] === 'black'))
         );
 });
 
