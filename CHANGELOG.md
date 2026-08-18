@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/butburg/kleinanz-laravel-12/compare/v1.0.0...v1.0.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* sidebar centering ([e7a5b30](https://github.com/butburg/kleinanz-laravel-12/commit/e7a5b308b5f12937b8d235f6ea83e17b1ae465c1))
+
 ## 1.0.0 (2026-08-18)
 
 
