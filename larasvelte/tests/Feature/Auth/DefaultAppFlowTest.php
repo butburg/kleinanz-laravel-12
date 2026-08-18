@@ -14,7 +14,10 @@ it('routes guests to login from the home page', function (): void {
 
     $this->get(route('login'))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page->component('auth/Login'));
+        ->assertInertia(fn(Assert $page) => $page
+            ->component('auth/Login')
+            ->where('name', config('app.name'))
+            ->where('version', config('app.version')));
 });
 
 it('routes authenticated users to their ad listing from the home page', function (): void {

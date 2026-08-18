@@ -1,10 +1,14 @@
 <script lang="ts">
     import { Smile } from 'lucide-svelte';
+    import { page } from '@inertiajs/svelte';
+
+    const name = $page.props.name;
+    const version = $page.props.version;
 </script>
 
 <footer class="border-t border-border/70 px-4 py-8 text-sm text-muted-foreground">
     <div class="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-        <p class="text-xs">Weedy Classifieds v2.x</p>
+        <p class="text-xs">{name} v{version}</p>
 
         <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:justify-end">
             <a

@@ -19,6 +19,7 @@ export interface NavItem {
 
 export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
     name: string;
+    version: string;
     auth: Auth;
     sidebarOpen: boolean;
     [key: string]: unknown;

@@ -1,0 +1,14 @@
+{
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "extra-files": [
+    {
+      "type": "json",
+      "path": "larasvelte/version.json",
+      "jsonpath": "$.version"
+    }
+  ],
+  "packages": {
+    ".": {}
+  }
+}

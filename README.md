@@ -1,4 +1,6 @@
-# kleinanz
+# Weedy Classifieds
+
+[![Latest release](https://img.shields.io/github/v/release/butburg/kleinanz-laravel-12?display_name=tag&sort=semver)](https://github.com/butburg/kleinanz-laravel-12/releases/latest)
 
 An AI-assisted classified-ads workspace for creating, refining, and managing listings with less repetitive work.
 
