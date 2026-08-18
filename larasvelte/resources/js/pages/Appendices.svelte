@@ -24,7 +24,10 @@
     let { appendices, limit }: Props = $props();
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Platforms', href: '/appendices' },
+        {
+            title: 'Platforms',
+            href: '/appendices',
+        },
     ];
 
     function deleteAppendix(appendixId: number): void {
@@ -37,11 +40,9 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
-        <HeadingSmall
-            title="Platforms and appendices"
-            description="Set the standard text that is added to generated descriptions for each platform."
-        />
+    <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+        <p class="text-sm text-muted-foreground">Set the standard text that is added to generated descriptions for each platform.</p>
+
 
         {#if appendices.length < limit}
             <section class="space-y-4 rounded-lg border p-4">

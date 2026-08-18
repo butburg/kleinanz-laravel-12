@@ -1,5 +1,4 @@
 <script lang="ts">
-    import Heading from '@/components/Heading.svelte';
     import { Button } from '@/components/ui/button';
     import { Separator } from '@/components/ui/separator';
     import { cn } from '@/lib/utils';
@@ -39,8 +38,8 @@
     let { children }: Props = $props();
 </script>
 
-<div class="px-4 py-6">
-    <Heading title="Settings" description="Manage your profile and account settings" />
+<div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+    <p class="text-sm text-muted-foreground">Manage your profile and account settings.</p>
 
     <div class="flex flex-col lg:flex-row lg:space-x-12">
         <aside class="w-full max-w-xl lg:w-30 lg:shrink-0">

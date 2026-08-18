@@ -490,7 +490,7 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="space-y-4 px-4 pt-4 pb-8">
+    <div class={`mx-auto w-full max-w-6xl space-y-6 px-4 ${isCreateAdPage ? 'py-6' : 'py-4'}`}>
         {#if flash?.success}
             <div class="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800" data-test="flash-success">
                 {flash.success}
@@ -504,7 +504,9 @@
         {/if}
 
         {#if isCreateAdPage}
-            <div class="space-y-4 px-4 py-4">
+            <div class="space-y-4">
+                <p class="text-sm text-muted-foreground">Create a listing from your photos with AI assistance.</p>
+
                 <!-- AI Status Warnings -->
                 {#if aiStatus?.use_test_mode}
                     <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
@@ -703,10 +705,10 @@
                 </Button>
             </div>
         {:else}
-            <div class="flex items-center justify-between gap-4">
-                <h1 class="text-2xl font-semibold">My Ads</h1>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-muted-foreground">Manage, update, and reuse your classified listings.</p>
 
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                     <Label for="ads-status-filter" class="sr-only">Filter by status</Label>
                     <select
                         id="ads-status-filter"

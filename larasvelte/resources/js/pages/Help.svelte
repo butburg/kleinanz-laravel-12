@@ -1,5 +1,4 @@
 <script lang="ts">
-    import HeadingSmall from '@/components/HeadingSmall.svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import type { BreadcrumbItem } from '@/types';
 
@@ -13,11 +12,9 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
-        <HeadingSmall
-            title="Create and keep better listings"
-            description="Turn an item photo into a clear, reusable classified listing."
-        />
+    <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+        <p class="text-sm text-muted-foreground">Turn an item photo into a clear, reusable classified listing.</p>
+
 
         <section class="space-y-3 rounded-lg border p-5">
             <h2 class="text-base font-semibold">From photo to listing</h2>

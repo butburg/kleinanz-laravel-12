@@ -1,5 +1,4 @@
 <script lang="ts">
-    import HeadingSmall from '@/components/HeadingSmall.svelte';
     import InputError from '@/components/InputError.svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { Button } from '@/components/ui/button';
@@ -28,8 +27,9 @@
 </svelte:head>
 
 <AppLayout breadcrumbs={breadcrumbItems}>
-    <div class="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
-        <HeadingSmall title="Support" description="Send me a message if you need help, have feedback, or want to report a bug. You can send up to five messages per day."/>
+    <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
+        <p class="text-sm text-muted-foreground">Send me a message if you need help, have feedback, or want to report a bug.</p>
+
         <Form method="post" action={route('support.store')} resetOnSuccess class="space-y-6">
             {#snippet children({ errors, processing, recentlySuccessful }: SupportFormSnippetProps)}
                 <div class="grid gap-2">
@@ -47,5 +47,6 @@
                 </div>
             {/snippet}
         </Form>
+        <p class="text-xs text-muted-foreground">You can send up to five messages per day.</p>
     </div>
 </AppLayout>

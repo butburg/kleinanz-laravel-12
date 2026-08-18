@@ -334,9 +334,9 @@
 </svelte:head>
 
 <AppLayout {breadcrumbs}>
-    <div class="flex flex-col gap-4 px-4 pt-4 pb-8">
-        <div class="flex items-center justify-between gap-4">
-            <h1 class="text-2xl font-semibold">Edit Ad</h1>
+    <div class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-muted-foreground">Update your listing and manage its images.</p>
 
             <div class="flex items-center gap-2 pb-1">
                 {#if navigation.previousAdId}

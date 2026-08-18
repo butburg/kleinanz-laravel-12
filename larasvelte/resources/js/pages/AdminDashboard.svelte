@@ -45,10 +45,7 @@
 
 <AppLayout {breadcrumbs}>
     <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
-        <div class="space-y-1">
-            <h1 class="text-xl font-semibold tracking-tight">Admin</h1>
-            <p class="text-sm text-muted-foreground">Overview of registered users.</p>
-        </div>
+        <p class="text-sm text-muted-foreground">Overview of registered users.</p>
 
         {#if users.length === 0}
             <section class="rounded-lg border px-4 py-8">
