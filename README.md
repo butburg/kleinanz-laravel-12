@@ -1,239 +1,188 @@
-# Kleinanzeigen Laravel 12
+# kleinanz
 
-AI-powered classified ads generator built with Laravel 12, Svelte 5, and TailwindCSS.
+An AI-assisted classified-ads workspace for creating, refining, and managing listings with less repetitive work.
 
-## Quick Start
+Built with Laravel 12, Svelte 5, Inertia, and Tailwind CSS.
 
-**Always** make sure:
+![kleinanz ad overview](assets/kleinanz-dashboard.jpg)
 
-```bash
-cd larasvelte
-```
+## What it does
 
-### Prerequisites
-- PHP 8.3+
-- Node.js 20+
+- Create and manage listings with titles, descriptions, prices, shipping sizes, platforms, and statuses.
+- Upload up to ten images per ad; the browser compresses them before upload.
+- Generate listing titles and descriptions from an uploaded image with OpenAI.
+- Automatically detect and frame the main clothing item in a photo with a fashion-specific YOLO model. The crop preserves a small margin and leaves images that are already close-ups unchanged.
+- Keep original, thumbnail, and cropped image variants available for each listing.
+- Use a responsive Svelte interface, including an admin area and account settings.
+
+## Requirements
+
+- PHP 8.2 or later
 - Composer
-- Python 3.12+ with `pip` (for YOLO auto-crop script)
+- Node.js 20 or later
+- A MySQL-compatible database, configured in `larasvelte/.env`
+- Python 3 with `pip` for the optional auto-crop feature
 
-### Installation
+`OPENAI_API_KEY` is required for using AI text generation. The optional auto-crop feature also needs the ONNX model file, which is not included in this repository.
 
-1. **Clone and setup:**
+## Local setup
+
+All Laravel commands run from `larasvelte/`.
+
 ```bash
 cd larasvelte
 composer install
 npm install
-```
-
-2. **Setup local Python runtime for auto-crop:**
-```bash
-bash scripts/setup_auto_crop_dev.sh
-source .venv-crop/bin/activate
-```
-
-3. **Put the YOLO model in the default local path:**
-```bash
-mkdir -p storage/models
-# Place yolov8n-fashionpedia-1.onnx in storage/models/
-```
-
-4. **Configure environment:**
-```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-5. **Setup database:**
+Configure the database and any optional service keys in `.env`, then create the schema and development user:
+
 ```bash
-touch database/database.sqlite
-php artisan migrate:fresh --seed
+php artisan migrate --seed
 ```
 
-### Running Locally
+The seeded development account is:
 
-You need **three terminal tabs** (`cd larasvelte`):
+- Email: `test@example.com`
+- Password: `password`
 
-**Terminal 1 - Laravel Server:**
+### Enable smart auto-crop
+
+Auto-crop runs in a queued job and uses a local Python environment plus an ONNX fashion-detection model.
+
 ```bash
+bash scripts/setup_auto_crop_dev.sh
+mkdir -p storage/models
+# Place yolov8n-fashionpedia-1.onnx in storage/models/
+```
+
+The default `.env` values expect:
+
+```dotenv
+PYTHON_PATH=.venv-crop/bin/python
+AUTO_CROP_MODEL_PATH=storage/models/yolov8n-fashionpedia-1.onnx
+```
+
+## Run locally
+
+Start the Laravel server, Vite, and the queue worker in separate terminals:
+
+```bash
+# Terminal 1
+cd larasvelte
 php artisan serve
-```
-Server runs at: `http://localhost:8000`
 
-**Terminal 2 - Vite Dev Server (in same directory):**
-```bash
+# Terminal 2
+cd larasvelte
 npm run dev
-```
-Vite runs in the background for hot module reloading.
 
-**Terminal 3 - Queue Worker (required for auto-crop):**
-```bash
+# Terminal 3
+cd larasvelte
 php artisan queue:work --queue=default -v
 ```
 
-Then open **http://localhost:8000** in your browser.
+Open `http://localhost:8000` after the server starts.
 
-### Default Test Credentials
+## Useful commands
 
-You will find them in larasvelte/database/seeders/DefaultUserSeeder.php
-
-
-**Email:** `test@example.com`
-**Password:** `password`
-
-These are automatically created when you run `php artisan migrate:fresh --seed`.
-
-## Development
-
-### Available Commands
-
-**Backend:**
 ```bash
-php artisan serve              # Start Laravel dev server
-php artisan migrate            # Run migrations
-php artisan tinker            # Interactive PHP shell
-php artisan queue:work        # Process async jobs
+cd larasvelte
+
+php artisan test                 # Run the test suite
+php artisan test --parallel      # Run the test suite in parallel
+composer run test                # Run Pint checks and tests
+npm run build                    # Create a production frontend build
+npm run svelte:check             # Type-check Svelte components
+npm run lint                     # Fix JavaScript and Svelte lint issues
+npm run format:check             # Check frontend formatting
+npm run format                   # Format frontend source files
+php artisan queue:work           # Process queued jobs
 ```
 
-**Ad-hoc auto-crop tuning (single fixture image):**
+To inspect the auto-crop result for the included fixture image:
+
 ```bash
-php artisan app:crop-fixture-image --detection-threshold=0.65 --closeup-threshold=0.80 --margin-percent=2
+php artisan app:crop-fixture-image \
+  --detection-threshold=0.65 \
+  --closeup-threshold=0.80 \
+  --margin-percent=2
 ```
-This uses `larasvelte/tests/fixtures/test-image.jpg` as input and writes `larasvelte/tests/fixtures/test-image_cropped.jpg` so you can compare results quickly.
-Useful options to tune behavior: `--detection-threshold` (0..1), `--closeup-threshold` (0..1), `--margin-percent`, `--model=/absolute/path/to/model.onnx`.
 
-**Auto-crop matrix mode (many output images, 0.10 step):**
+The command writes `tests/fixtures/test-image_cropped.jpg` for comparison.
+
+For systematic detector tuning, matrix mode writes one output image for every threshold combination and a JSON diagnostics report:
+
 ```bash
-php artisan app:crop-fixture-image --matrix --detection-min=0.10 --detection-max=0.90 --closeup-min=0.10 --closeup-max=0.90 --step=0.10 --margin-percent=3
-```
-This creates one image per parameter combination, for example:
-`larasvelte/tests/fixtures/test-image_cropped_dt010_ct020_m03.jpg`.
-It also writes a diagnostics report at `larasvelte/tests/fixtures/test-image_cropped_matrix_report.json` with per-run fields like `decision_reason`, `detection_count`, and `main_coverage`.
-
-**Frontend:**
-```bash
-npm run dev                    # Start Vite dev server
-npm run build                  # Build for production
-npm run lint                   # Run ESLint
-npm run format                 # Format code with Prettier
+php artisan app:crop-fixture-image --matrix \
+  --detection-min=0.10 --detection-max=0.90 \
+  --closeup-min=0.10 --closeup-max=0.90 \
+  --step=0.10 --margin-percent=3
 ```
 
-### Project Structure
+Output files use names such as `tests/fixtures/test-image_cropped_dt010_ct020_m03.jpg`; the report is written to `tests/fixtures/test-image_cropped_matrix_report.json` and includes the crop decision, detection count, and main-item coverage.
 
-```
+## Further documentation
+
+The archived migration notes and implementation guides are available in [`no_laravel/docs/`](no_laravel/docs/), including:
+
+- [AI-assisted development](no_laravel/docs/ai-assisted-development.md)
+- [Eloquent ORM patterns](no_laravel/docs/eloquent-orm-getting-started.md)
+- [Browser testing with Pest](no_laravel/docs/browser-testing-pest-v4.md)
+- [Validation](no_laravel/docs/validation.md)
+- [File storage](no_laravel/docs/file-storage.md)
+
+## Project structure
+
+```text
 larasvelte/
-├── app/                       # Laravel application code
-│   ├── Http/Controllers/
-│   ├── Models/
-│   └── Services/
-├── database/
-│   ├── migrations/
-│   ├── seeders/
-│   └── factories/
-├── resources/
-│   ├── js/                    # Svelte components
-│   ├── css/                   # TailwindCSS
-│   └── views/
-├── routes/
-│   └── web.php
-├── tests/                     # Pest tests
-├── config/ads.php             # Application configuration
-└── .env                       # Environment variables
+├── app/                 Laravel controllers, jobs, models, and services
+├── config/ads.php       Listing, image, AI, and auto-crop settings
+├── database/            Migrations, factories, and seeders
+├── resources/js/        Svelte pages, layouts, and components
+├── scripts/             Python auto-crop tooling and setup scripts
+├── storage/models/      Local ONNX model location (git-ignored)
+└── tests/               Pest tests and image fixtures
 ```
-
-### Configuration
-
-**Application Logic:** [config/ads.php](larasvelte/config/ads.php)
-- Image processing settings
-- Auto-crop YOLO configuration
-- Validation rules
-- Business logic constants
-
-**Environment Variables:** [.env](larasvelte/.env)
-- `OPENAI_API_KEY` - Required for text generation
-- `DB_DATABASE` - SQLite database path
-- Debug and queue settings
-
-## Features
-
-- **Ad Management**: Create, edit, archive classified ads
-- **Multi-Image Upload**: Upload up to 10 images with client-side compression
-- **AI Text Generation**: Generate ad titles and descriptions using OpenAI
-- **Auto-Crop**: Automatic image cropping with YOLO
-- **Image Variants**: Original and cropped versions for each image
-- **Responsive UI**: Mobile-first design with Svelte + TailwindCSS
-
-## Testing
-
-```bash
-php artisan test                    # Run all tests
-php artisan test --parallel         # Run tests in parallel
-./vendor/bin/phpunit --coverage     # Generate coverage report
-```
-
-## Documentation
-
-See [docs/](no_laravel/docs/) for detailed guides:
-- `ai-assisted-development.md` - AI workflow and architecture
-- `eloquent-orm-getting-started.md` - Database patterns
-- `browser-testing-pest-v4.md` - Testing guide
-- `validation.md` - Form validation patterns
 
 ## Troubleshooting
 
-**Running Laravel CLI on the server?**
-The hosting default `php` binary is older than the app requirement. Before running `php artisan`, `composer`, or other PHP CLI commands manually on the server, switch the shell session to PHP 8.4:
-```bash
-export PATH="/opt/lima-php/8.4/bin:$PATH"
-```
-This only affects the current bash session and makes `php` resolve to the same PHP 8.4 binary used in deployment.
+**Auto-crop is not processing images**
 
-**Need to check which database the live app is using?**
-Use Laravel config via Tinker instead of reading `.env` directly:
-```bash
-php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.'.config('database.default').'.database'));"
-```
-This is a troubleshooting/debug command. It prints the active connection name first, for example `mysql`, and then the configured database name, for example `db_439120_9`.
+Confirm that the queue worker is running, the model exists at `AUTO_CROP_MODEL_PATH`, and `PYTHON_PATH` points to the virtual environment created by `scripts/setup_auto_crop_dev.sh`.
 
-**Database error?**
+**The local database needs to be rebuilt**
+
+This deletes local application data, then recreates the schema and seeded development account:
+
 ```bash
-rm database/database.sqlite
-touch database/database.sqlite
+cd larasvelte
 php artisan migrate:fresh --seed
 ```
 
-**Dependencies not installed?**
+**Which database is the deployed application using?**
+
+Ask Laravel for its resolved configuration rather than inspecting `.env` directly:
+
 ```bash
-composer install
-npm install
+php artisan tinker --execute="dump(config('database.default')); dump(config('database.connections.'.config('database.default').'.database'));"
 ```
 
-**Auto-crop Python dependencies missing?**
+The command prints the active connection name and configured database name.
+
+**Laravel commands use an older PHP version on Lima-City**
+
+Switch the active shell session before running Artisan or Composer:
+
 ```bash
-cd larasvelte
-bash scripts/setup_auto_crop_dev.sh
-source .venv-crop/bin/activate
-php artisan config:clear
+export PATH="/opt/lima-php/8.4/bin:$PATH"
 ```
 
-**Auto-crop model file missing?**
-```bash
-cd larasvelte
-ls -lh storage/models/yolov8n-fashionpedia-1.onnx
-grep '^AUTO_CROP_MODEL_PATH=' .env
-```
+**Vite changes are not appearing**
 
-**Port 8000 already in use?**
-```bash
-php artisan serve --port=8001
-```
-
-**Vite not updating changes?**
-Restart the dev server:
-```bash
-# Kill (Ctrl+C) and restart
-npm run dev
-```
+Restart `npm run dev`, or use `npm run build` when preparing a production deployment.
 
 ## License
 
-This project is private. See LICENSE file for details.
+See [LICENSE](LICENSE) for details.
