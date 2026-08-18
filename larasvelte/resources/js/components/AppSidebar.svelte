@@ -31,10 +31,13 @@
 </script>
 
 <Sidebar collapsible="icon" variant="inset">
-    <SidebarHeader>
+    <SidebarHeader class="group-data-[collapsible=icon]:p-1">
         <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarMenuButton size="lg">
+                <SidebarMenuButton
+                    size="lg"
+                    class="group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
+                >
                     <Link href={route('dashboard')}>
                         <AppLogo />
                     </Link>

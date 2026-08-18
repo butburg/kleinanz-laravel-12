@@ -1,6 +1,6 @@
 <script lang="ts">
     import Breadcrumbs from '@/components/Breadcrumbs.svelte';
-    import { SidebarTrigger } from '@/components/ui/sidebar';
+    import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
     import type { BreadcrumbItem } from '@/types';
 
     interface Props {
@@ -8,6 +8,7 @@
     }
 
     let { breadcrumbs = [] }: Props = $props();
+    const sidebar = useSidebar();
 </script>
 
 <header
@@ -17,7 +18,7 @@
         <SidebarTrigger class="-ml-1" />
 
         {#if breadcrumbs.length > 0}
-            <Breadcrumbs {breadcrumbs} />
+            <Breadcrumbs {breadcrumbs} onCurrentClick={sidebar.toggle} />
         {/if}
     </div>
 </header>
