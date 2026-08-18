@@ -13,7 +13,7 @@
     const isCurrentRoute = $derived((url: string) => url === '/ads' ? $page.url.startsWith('/ads') : $page.url === url);
 </script>
 
-<SidebarGroup class="px-2 py-0">
+<SidebarGroup class="px-2 py-0 group-data-[collapsible=icon]:p-0">
     <SidebarGroupLabel>Navigation</SidebarGroupLabel>
     <SidebarMenu>
         {#each items as item (item.title)}

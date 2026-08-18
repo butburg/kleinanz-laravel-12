@@ -25,7 +25,7 @@
     {/if}
 </Avatar>
 
-<div class="grid flex-1 text-left text-sm leading-tight">
+<div class="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
     <span class="truncate font-medium">{user.name}</span>
 
     {#if showEmail}
