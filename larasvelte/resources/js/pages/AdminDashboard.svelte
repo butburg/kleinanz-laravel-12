@@ -50,47 +50,19 @@
             <p class="text-sm text-muted-foreground">Overview of registered users.</p>
         </div>
 
-        <section class="max-h-[calc(100vh-13rem)] overflow-y-auto rounded-lg border">
-            <div class="sticky top-0 z-10 hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1.5fr)_5rem_5rem_minmax(0,1fr)_10rem_5rem] gap-4 border-b bg-muted/95 px-4 py-3 text-xs font-medium text-muted-foreground backdrop-blur 2xl:grid">
-                <span>Name</span>
-                <span>Email</span>
-                <span>Ads</span>
-                <span>Images</span>
-                <span>Platforms</span>
-                <span>Created</span>
-                <span class="text-right">Actions</span>
-            </div>
-
-            {#if users.length === 0}
-                <p class="px-4 py-8 text-sm text-muted-foreground">No users found.</p>
-            {:else}
+        {#if users.length === 0}
+            <section class="rounded-lg border px-4 py-8">
+                <p class="text-sm text-muted-foreground">No users found.</p>
+            </section>
+        {:else}
+            <section class="grid gap-4 lg:grid-cols-2">
                 {#each users as user (user.id)}
-                    <article class="grid gap-3 border-b px-4 py-4 last:border-b-0 sm:grid-cols-2 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.5fr)_5rem_5rem_minmax(0,1fr)_10rem_5rem] 2xl:items-center 2xl:gap-4">
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Name</span>
-                            <p class="text-sm font-medium">{user.name}</p>
-                        </div>
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Email</span>
-                            <p class="break-all text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Ads</span>
-                            <p class="text-sm tabular-nums">{user.ads_count}</p>
-                        </div>
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Images</span>
-                            <p class="text-sm tabular-nums">{user.images_count}</p>
-                        </div>
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Platforms</span>
-                            <p class="text-sm text-muted-foreground">{user.platforms.length ? user.platforms.join(', ') : '—'}</p>
-                        </div>
-                        <div class="min-w-0">
-                            <span class="text-xs font-medium text-muted-foreground 2xl:hidden">Created</span>
-                            <p class="text-sm text-muted-foreground">{formatCreatedAt(user.created_at)}</p>
-                        </div>
-                        <div class="flex justify-end">
+                    <article class="flex min-w-0 flex-col gap-5 rounded-lg border p-5">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="min-w-0">
+                                <p class="truncate text-base font-semibold">{user.name}</p>
+                                <p class="break-all text-sm text-muted-foreground">{user.email}</p>
+                            </div>
                             <Button
                                 type="button"
                                 variant="destructive"
@@ -102,9 +74,36 @@
                                 <Trash2 class="size-4" />
                             </Button>
                         </div>
+
+                        <dl class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt class="text-muted-foreground">Ads</dt>
+                                <dd class="mt-1 font-medium tabular-nums">{user.ads_count}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-muted-foreground">Images</dt>
+                                <dd class="mt-1 font-medium tabular-nums">{user.images_count}</dd>
+                            </div>
+                            <div class="col-span-2">
+                                <dt class="text-muted-foreground">Platforms</dt>
+                                {#if user.platforms.length}
+                                    <dd class="mt-2 flex flex-wrap gap-2">
+                                        {#each user.platforms as platform (platform)}
+                                            <span class="rounded-md bg-muted px-2 py-1 text-xs font-medium">{platform}</span>
+                                        {/each}
+                                    </dd>
+                                {:else}
+                                    <dd class="mt-1 text-muted-foreground">No platforms configured.</dd>
+                                {/if}
+                            </div>
+                            <div class="col-span-2">
+                                <dt class="text-muted-foreground">Registered</dt>
+                                <dd class="mt-1">{formatCreatedAt(user.created_at)}</dd>
+                            </div>
+                        </dl>
                     </article>
                 {/each}
-            {/if}
-        </section>
+            </section>
+        {/if}
     </div>
 </AppLayout>

@@ -18,9 +18,10 @@ class AdminDashboardController extends Controller
 
         $users = User::query()
             ->withCount(['ads', 'images'])
-            ->with(['ads' => fn ($query) => $query
+            ->with(['appendices' => fn ($query) => $query
                 ->select(['id', 'user_id', 'platform'])
-                ->whereNotNull('platform')])
+                ->whereNotNull('platform')
+                ->orderBy('platform')])
             ->orderBy('name')
             ->get()
             ->map(fn (User $user): array => [
@@ -29,10 +30,8 @@ class AdminDashboardController extends Controller
                 'email' => $user->email,
                 'ads_count' => $user->ads_count,
                 'images_count' => $user->images_count,
-                'platforms' => $user->ads
+                'platforms' => $user->appendices
                     ->pluck('platform')
-                    ->unique()
-                    ->sort()
                     ->values()
                     ->all(),
                 'created_at' => $user->created_at->toIso8601String(),

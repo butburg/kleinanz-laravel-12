@@ -19,6 +19,8 @@ it('shows users and their activity to the configured admin', function (): void {
     ]);
     $firstAd = Ad::factory()->for($user)->create(['platform' => 'Kleinanzeigen']);
     $secondAd = Ad::factory()->for($user)->create(['platform' => 'eBay']);
+    Appendix::factory()->for($user)->create(['platform' => 'Kleinanzeigen']);
+    Appendix::factory()->for($user)->create(['platform' => 'Vinted']);
     AdImage::factory()->for($firstAd)->count(2)->create();
     AdImage::factory()->for($secondAd)->create();
 
@@ -35,7 +37,7 @@ it('shows users and their activity to the configured admin', function (): void {
                         && $dashboardUser['email'] === 'jane@example.com'
                         && $dashboardUser['ads_count'] === 2
                         && $dashboardUser['images_count'] === 3
-                        && $dashboardUser['platforms'] === ['Kleinanzeigen', 'eBay']
+                        && $dashboardUser['platforms'] === ['Kleinanzeigen', 'Vinted']
                         && $dashboardUser['created_at'] === $user->created_at->toIso8601String()
                 ))
         );
