@@ -183,3 +183,66 @@ it('rejects generation when no images exist', function (): void {
         ->post(route('ads.generate', $ad))
         ->assertSessionHasErrors(['generate']);
 });
+
+it('shows a useful error when the text generation service cannot be reached', function (): void {
+    Storage::fake('public');
+    Http::fake([
+        '*' => Http::failedConnection(),
+    ]);
+
+    $user = User::factory()->create([
+        'openai_api_key' => 'test-key',
+        'use_test_mode' => false,
+    ]);
+    Appendix::factory()->for($user)->create([
+        'platform' => 'Kleinanzeigen',
+        'content' => '',
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('dashboard'))
+        ->post(route('ads.store'), [
+            '_generate' => true,
+            'platform' => 'Kleinanzeigen',
+            'auto_crop_enabled' => false,
+            'images' => [UploadedFile::fake()->image('coat.jpg')],
+        ])
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHasErrors([
+            'generate' => 'The text generation service could not be reached. Please try again in a moment.',
+        ])
+        ->assertSessionHas('error', 'Text generation failed. Ad was not saved.');
+
+    expect($user->ads()->count())->toBe(0);
+});
+
+it('continues generation with the original image when optional auto crop fails', function (): void {
+    Storage::fake('public');
+    config(['ads.auto_crop.script_path' => base_path('scripts/missing-auto-crop.py')]);
+
+    $user = User::factory()->create([
+        'openai_api_key' => null,
+        'use_test_mode' => true,
+    ]);
+    Appendix::factory()->for($user)->create([
+        'platform' => 'Kleinanzeigen',
+        'content' => '',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('ads.store'), [
+            '_generate' => true,
+            'platform' => 'Kleinanzeigen',
+            'auto_crop_enabled' => true,
+            'images' => [UploadedFile::fake()->image('coat.jpg')],
+        ])
+        ->assertRedirect(route('ads.index', absolute: false))
+        ->assertSessionHas('success', 'Ad generated and saved successfully.');
+
+    $ad = $user->ads()->with('images')->sole();
+
+    expect($ad->title)->toBe('Beispielprodukt - Test')
+        ->and($ad->images)->toHaveCount(1)
+        ->and($ad->images->first()->cropped_path)->toBeNull()
+        ->and($ad->images->first()->large_thumb_path)->not->toBeNull();
+});

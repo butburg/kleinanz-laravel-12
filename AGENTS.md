@@ -2,7 +2,6 @@
 
 Start with the [memory hub](memories/README.md), then read the relevant live guidance:
 
-- [General repository guidance](memories/general.md)
 - [Laravel Boost agent guidance](larasvelte/AGENTS.md)
 - [Laravel Boost skills](memories/larasvelte.md)
 - [Legacy extracted features](memories/legacy/features_extracted.md)

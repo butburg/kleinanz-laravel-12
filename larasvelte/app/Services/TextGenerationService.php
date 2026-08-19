@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Ad;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,7 @@ class TextGenerationService
     private const RESPONSE_FIELDS = ['title', 'description', 'condition', 'price', 'shipping'];
 
     private string $systemPrompt;
+
     private string $adExamples;
 
     public function __construct()
@@ -76,7 +78,7 @@ class TextGenerationService
 
     private function readPrompt(string $fileName): string
     {
-        $path = base_path('resources/prompts/ads/' . $fileName);
+        $path = base_path('resources/prompts/ads/'.$fileName);
         if (! is_file($path)) {
             throw new TextGenerationException("Missing prompt file: {$fileName}");
         }
@@ -144,14 +146,34 @@ class TextGenerationService
             'user_instruction' => $payload['input'][1]['content'][0]['text'],
         ]);
 
-        $response = Http::timeout(config('ads.openai.timeout'))
-            ->withToken($apiKey)
-            ->post($this->openAiUrl('/responses'), $payload);
+        try {
+            $response = Http::timeout(config('ads.openai.timeout'))
+                ->withToken($apiKey)
+                ->post($this->openAiUrl('/responses'), $payload);
+        } catch (ConnectionException $exception) {
+            Log::error('TEXT GENERATION: OPENAI CONNECTION FAILED', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw new TextGenerationException(
+                'The text generation service could not be reached. Please try again in a moment.',
+                previous: $exception
+            );
+        }
 
         if (! $response->successful()) {
-            throw new TextGenerationException(
-                'OpenAI request failed: ' . $response->status() . ' ' . $response->body()
-            );
+            Log::error('TEXT GENERATION: OPENAI REQUEST FAILED', [
+                'status' => $response->status(),
+                'response_body' => $response->body(),
+            ]);
+
+            $customerMessage = match ($response->status()) {
+                401, 403 => 'The API key was rejected. Please check it in Settings and try again.',
+                429 => 'The text generation limit or quota was reached. Please try again later or check your API account.',
+                default => 'The text generation service could not complete the request. Please try again in a moment.',
+            };
+
+            throw new TextGenerationException($customerMessage);
         }
 
         return $response->json();
@@ -161,7 +183,7 @@ class TextGenerationService
     {
         $baseUrl = rtrim((string) config('services.openai.url'), '/');
 
-        return $baseUrl . $suffix;
+        return $baseUrl.$suffix;
     }
 
     private function buildUserInstruction(?string $promptText): string
@@ -235,20 +257,20 @@ class TextGenerationService
         $payload['price'] = is_numeric($payload['price'] ?? null) ? (int) $payload['price'] : null;
 
         $validator = Validator::make($payload, [
-            'title' => ['required', 'string', 'max:' . config('ads.validation.title_max_length')],
+            'title' => ['required', 'string', 'max:'.config('ads.validation.title_max_length')],
             'description' => [
                 'required',
                 'string',
-                'min:' . config('ads.validation.description_min_length'),
-                'max:' . config('ads.validation.description_max_length'),
+                'min:'.config('ads.validation.description_min_length'),
+                'max:'.config('ads.validation.description_max_length'),
             ],
-            'condition' => ['required', 'string', 'in:' . implode(',', config('ads.validation.conditions'))],
+            'condition' => ['required', 'string', 'in:'.implode(',', config('ads.validation.conditions'))],
             'price' => ['required', 'integer', 'min:0'],
-            'shipping' => ['required', 'string', 'in:' . implode(',', config('ads.validation.shipping_options'))],
+            'shipping' => ['required', 'string', 'in:'.implode(',', config('ads.validation.shipping_options'))],
         ]);
 
         if ($validator->fails()) {
-            throw new TextGenerationException('OpenAI response failed validation: ' . $validator->errors()->first());
+            throw new TextGenerationException('OpenAI response failed validation: '.$validator->errors()->first());
         }
 
         /** @var array{title: string, description: string, condition: string, price: int, shipping: string} $data */

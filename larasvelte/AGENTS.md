@@ -5,7 +5,8 @@
 
 The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to ensure the best experience when building Laravel applications.
 
-for commands runs like `php artisan` recognize taht the app lives in `larasvelte/`.
+For commands runs like `php artisan` recognize that the app lives in `larasvelte/`.!
+So you need to cd into `larasvelte/` before you can run `php artisan ...` or `npm run ...`!
 
 ## Foundational Context
 

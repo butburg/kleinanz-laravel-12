@@ -26,6 +26,7 @@ use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\ImageManager;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 use ZipArchive;
 
 class AdController extends Controller
@@ -279,7 +280,11 @@ class AdController extends Controller
                     ]),
                 ]);
 
-                AutoCropImage::dispatchSync($createdImage->fresh() ?? $createdImage);
+                try {
+                    AutoCropImage::dispatchSync($createdImage->fresh() ?? $createdImage);
+                } catch (Throwable $exception) {
+                    report($exception);
+                }
             }
 
             $createdImageIds[] = $createdImage->id;
@@ -440,6 +445,7 @@ class AdController extends Controller
                 $request->validated('prompt_text')
             );
         } catch (TextGenerationException $exception) {
+            report($exception);
             $ad->delete();
 
             return back()
@@ -542,6 +548,8 @@ class AdController extends Controller
             $promptText = $request->validated('prompt_text');
             $generated = $generator->generateForAd($ad, $request->user(), $promptText);
         } catch (TextGenerationException $exception) {
+            report($exception);
+
             return back()
                 ->withErrors(['generate' => $exception->getMessage()])
                 ->with('error', 'Text generation failed.');
