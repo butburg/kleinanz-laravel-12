@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/butburg/kleinanz-laravel-12/compare/v1.0.0...v1.1.0) (2026-08-19)
+
+
+### Features
+
+* show deployed release version in footer ([6d81847](https://github.com/butburg/kleinanz-laravel-12/commit/6d8184752bc517c64a135e695c7e92d1050c906c))
+
+
+### Bug Fixes
+
+* error page 500 and some exceptions ([10e485f](https://github.com/butburg/kleinanz-laravel-12/commit/10e485f3f0ab2dc1891ddffa2987d99d5fb12f6c))
+* sidebar centering ([e7a5b30](https://github.com/butburg/kleinanz-laravel-12/commit/e7a5b308b5f12937b8d235f6ea83e17b1ae465c1))
+
 ## [1.0.1](https://github.com/butburg/kleinanz-laravel-12/compare/v1.0.0...v1.0.1) (2026-08-18)
 
 
